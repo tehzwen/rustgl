@@ -1,22 +1,25 @@
 extern crate nalgebra as na;
 
 use na::{Matrix4, UnitQuaternion, Vector3};
-use nalgebra::{OVector, Unit};
+use nalgebra::{OVector, Point, Unit, Vector};
 
 use crate::{buffers::RenderBuffers, vertex::Vertex};
 
 pub struct Model {
     pub position: Vector3<f32>,
     pub scale: Vector3<f32>,
-    pub rotation: UnitQuaternion<f32>, // Using a quaternion for rotation
+    pub rotation: UnitQuaternion<f32>,
+
+    centroid: Vector3<f32>,
 }
 
 impl Model {
     pub fn new() -> Model {
         Model {
             position: Vector3::new(0.0, 0.0, 0.0),
-            scale: Vector3::new(0.5, 0.1, 1.0),
+            scale: Vector3::new(1.0, 1.0, 1.0),
             rotation: UnitQuaternion::identity(),
+            centroid: Vector3::new(0.0, 0.0, 0.0),
         }
     }
 
@@ -28,6 +31,10 @@ impl Model {
         self.rotation = rotation * self.rotation;
     }
 
+    pub fn scale(&mut self, target: Vector3<f32>) {
+        self.scale = target;
+    }
+
     pub fn translate(&mut self, target: Vector3<f32>) {
         self.position = target;
     }
@@ -35,14 +42,31 @@ impl Model {
     pub fn get_model_matrix(&self) -> Matrix4<f32> {
         let mut model_matrix = Matrix4::identity();
 
-        // Apply scale, rotation, and translation
-        model_matrix = model_matrix * Matrix4::new_scaling(self.scale.x);
-        model_matrix = model_matrix * Matrix4::new_scaling(self.scale.y);
-        model_matrix = model_matrix * Matrix4::new_scaling(self.scale.z);
-        model_matrix = model_matrix * self.rotation.to_homogeneous(); // Convert quaternion to a homogeneous rotation matrix
-        model_matrix = model_matrix * Matrix4::new_translation(&self.position);
+        // negate the centroid so we can move back correctly
+        // let neg_centroid = Vector3::new(-self.centroid.x, -self.centroid.y, -self.centroid.z);
 
-        model_matrix
+        // Apply scale, rotation, and translation
+        // model_matrix *= Matrix4::new_translation(&self.centroid);
+        model_matrix *= Matrix4::new_nonuniform_scaling(&self.scale);
+        model_matrix *= Matrix4::new_translation(&self.position);
+        model_matrix *= self.rotation.to_homogeneous();
+
+
+        // model_matrix *= Matrix4::new_translation(&neg_centroid);
+
+        return model_matrix;
+    }
+
+    fn calculate_centroid(&mut self, vertices: &[Vertex]) {
+        let mut center = Vector3::new(0.0, 0.0, 0.0);
+
+        for vertex in vertices {
+            center.x += vertex[0];
+            center.y += vertex[1];
+            center.z += vertex[2];
+        }
+
+        self.centroid = center.scale(1.0 / (vertices.len() as f32));
     }
 }
 
@@ -50,14 +74,25 @@ pub struct Object<'a> {
     pub model: Model,
     pub buffers: RenderBuffers,
     pub vertices: &'a [Vertex],
+    pub normals: &'a [Vertex],
 }
 
 impl Object<'_> {
-    pub fn new(m: Model, b: RenderBuffers, v: &[Vertex]) -> Object {
+    pub fn new<'a>(m: Model, b: RenderBuffers, v: &'a [Vertex], n: &'a [Vertex]) -> Object<'a> {
         Object {
             model: m,
             buffers: b,
             vertices: v,
+            normals: n,
         }
+    }
+
+    pub fn init(&mut self) {
+        // initialize our buffers
+        self.buffers.init(self.vertices, self.normals);
+
+        // calculate centroid
+        self.model.calculate_centroid(self.vertices);
+        // etc etc
     }
 }

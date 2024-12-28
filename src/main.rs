@@ -22,7 +22,7 @@ use ogl33::*;
 use render::{Model, Object};
 use std::{ffi::CString, time::Instant};
 
-const WINDOW_TITLE: &str = "Triangle: Draw Arrays";
+const WINDOW_TITLE: &str = "VS Clone";
 // const VERTICES: [vertex::Vertex; 3] = [[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]];
 const VERTICES: [vertex::Vertex; 36] = [
     // Front face
@@ -119,18 +119,45 @@ fn main() {
     gw.init();
     let gl_win = gw.window.expect("failed to get opengl window");
     let sdl = gw.ctx.expect("failed to get window context");
-    let render_buffers = buffers::RenderBuffers::new();
     let mut shader_program: u32 = 0;
 
-    let mut triangle = Object::new(Model::new(), render_buffers, &VERTICES);
+    // initialize objects list
+    let mut objects: Vec<Object> = Vec::new();
+
+    let mut triangle = Object::new(
+        Model::new(),
+        buffers::RenderBuffers::new(),
+        &VERTICES,
+        &NORMALS,
+    );
+    triangle.model.scale(Vector3::new(0.2, 0.2, 0.2));
+    objects.push(triangle);
+
+
+    let mut another = Object::new(
+        Model::new(),
+        buffers::RenderBuffers::new(),
+        &VERTICES,
+        &NORMALS,
+    );
+    another.model.scale(Vector3::new(0.2, 0.2, 0.2));
+    another.model.translate(Vector3::new(2.0, 0.0, 0.0));
+
+    objects.push(another);
+
     let mut light = PointLight::new();
-    light.position.z = 3.0;
-    light.position.y = 3.0;
+    light.position.z = 50.0;
+    light.position.y = 100.0;
     light.strength = 3.0;
 
     unsafe {
         load_gl_with(|f_name| gl_win.get_proc_address(f_name.cast()));
-        triangle.buffers.init(&VERTICES, &NORMALS);
+        // triangle.buffers.init(&VERTICES, &NORMALS);
+        // initialize all of the objects buffers
+        for object in &mut objects {
+            object.init();
+        }
+
         let blinn_shader = shader::Shader::new("blinn".to_string());
         shader_program = blinn_shader.program;
 
@@ -142,7 +169,7 @@ fn main() {
     let camera_target = Point3::new(0.0, 0.0, 0.0); // Target point to look at
     let up_direction: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0); // Up direction for the camera
 
-    let rotation_speed = std::f32::consts::PI / 2.0; // 90 degrees per second
+    let rotation_speed = std::f32::consts::PI * 3.0;
     let start_time = Instant::now();
 
     'main_loop: loop {
@@ -168,18 +195,23 @@ fn main() {
         // now the events are clear.
 
         // here's where we could change the world state if we had some.
-        triangle
-            .model
-            .rotate(Vector3::y_axis(), rotation_speed * 0.0005);
 
-        // get the sin of the values to move up & down
-        let move_val = f32::sin(start_time.elapsed().as_secs_f32() * 4.5) * 0.005;
+        for object in &mut objects {
+            // Rotate the model
+            object
+                .model
+                .rotate(Vector3::y_axis(), rotation_speed * 0.0005);
 
-        triangle.model.translate(Vector3::new(
-            triangle.model.position.x,
-            triangle.model.position.y + move_val,
-            triangle.model.position.z,
-        ));
+            // Calculate movement value
+            let move_val = f32::sin(start_time.elapsed().as_secs_f32() * 4.5) * 0.005;
+
+            // Translate the model
+            object.model.translate(Vector3::new(
+                object.model.position.x,
+                object.model.position.y + move_val,
+                object.model.position.z,
+            ));
+        }
 
         // and then draw!
         unsafe {
@@ -206,29 +238,30 @@ fn main() {
             // Create the view matrix using lookAt (right-handed coordinate system)
             let view = Matrix4::look_at_rh(&camera_position, &camera_target, &up_direction);
 
-            // Create the model matrix (identity if no transformation)
-            // let model: Matrix4<f32> = Matrix4::identity();
-            let model = triangle.model.get_model_matrix();
+            // now loop over the objects and get specific uniform fields for the object
 
-            // Send the matrices to the shader
-            glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.as_ptr());
-            glUniformMatrix4fv(view_loc, 1, GL_FALSE, view.as_ptr());
-            glUniformMatrix4fv(model_loc, 1, GL_FALSE, model.as_ptr());
+            for object in &mut objects {
+                let model = object.model.get_model_matrix();
+                // Send the matrices to the shader
+                glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.as_ptr());
+                glUniformMatrix4fv(view_loc, 1, GL_FALSE, view.as_ptr());
+                glUniformMatrix4fv(model_loc, 1, GL_FALSE, model.as_ptr());
 
-            // pointlight
-            glUniform3f(
-                light_position_loc,
-                light.position.x,
-                light.position.y,
-                light.position.z,
-            );
-            glUniform3f(light_color_loc, light.color.x, light.color.y, light.color.z); // Light color (white)
-            glUniform1f(light_strength_loc, light.strength); // Light strength
+                // pointlight
+                glUniform3f(
+                    light_position_loc,
+                    light.position.x,
+                    light.position.y,
+                    light.position.z,
+                );
+                glUniform3f(light_color_loc, light.color.x, light.color.y, light.color.z); // Light color (white)
+                glUniform1f(light_strength_loc, light.strength); // Light strength
 
-            // Bind buffers and draw
-            triangle.buffers.bind();
-            glDrawArrays(GL_TRIANGLES, 0, triangle.buffers.size);
-            triangle.buffers.unbind();
+                // Bind buffers and draw
+                object.buffers.bind();
+                glDrawArrays(GL_TRIANGLES, 0, object.buffers.size);
+                object.buffers.unbind();
+            }
         }
         gl_win.swap_window();
     }
