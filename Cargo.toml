@@ -8,5 +8,6 @@ beryllium = "0.13.3"
 imagine = "0.0.5"
 bytemuck = "1"
 ogl33 = { version = "0.2.0", features = ["debug_error_checks"]}
+nalgebra = "0.33.2"
 
 [dev-dependencies]

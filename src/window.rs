@@ -13,8 +13,8 @@ use ogl33::*;
 
 use std::ptr::null;
 
-pub struct GameWindow<'a> {
-    name: &'a str,
+pub struct GameWindow {
+    name: String,
     width: i32,
     height: i32,
 
@@ -22,8 +22,8 @@ pub struct GameWindow<'a> {
     pub ctx: Option<Sdl>,
 }
 
-impl GameWindow<'_> {
-    pub fn new(name: &str, width: i32, height: i32) -> GameWindow {
+impl GameWindow {
+    pub fn new(name: String, width: i32, height: i32) -> GameWindow {
         GameWindow {
             name: name,
             width: width,
