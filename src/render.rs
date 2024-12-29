@@ -3,7 +3,7 @@ extern crate nalgebra as na;
 use na::{Matrix4, UnitQuaternion, Vector3};
 use nalgebra::{OVector, Point, Unit, Vector};
 
-use crate::{buffers::RenderBuffers, vertex::Vertex};
+use crate::{buffers::RenderBuffers, material::Material, vertex::Vertex};
 
 pub struct Model {
     pub position: Vector3<f32>,
@@ -51,7 +51,6 @@ impl Model {
         model_matrix *= Matrix4::new_translation(&self.position);
         model_matrix *= self.rotation.to_homogeneous();
 
-
         // model_matrix *= Matrix4::new_translation(&neg_centroid);
 
         return model_matrix;
@@ -70,29 +69,37 @@ impl Model {
     }
 }
 
-pub struct Object<'a> {
+pub struct Object {
     pub model: Model,
     pub buffers: RenderBuffers,
-    pub vertices: &'a [Vertex],
-    pub normals: &'a [Vertex],
+    pub material: Box<dyn Material>,
+    pub vertices: Vec<Vector3<f32>>,
+    pub normals: Vec<Vector3<f32>>,
 }
 
-impl Object<'_> {
-    pub fn new<'a>(m: Model, b: RenderBuffers, v: &'a [Vertex], n: &'a [Vertex]) -> Object<'a> {
+impl Object {
+    pub fn new<'a>(
+        m: Model,
+        b: RenderBuffers,
+        v: Vec<Vector3<f32>>,
+        n: Vec<Vector3<f32>>,
+        material: Box<dyn Material>,
+    ) -> Object {
         Object {
             model: m,
             buffers: b,
             vertices: v,
             normals: n,
+            material,
         }
     }
 
     pub fn init(&mut self) {
         // initialize our buffers
-        self.buffers.init(self.vertices, self.normals);
+        self.buffers.init(&self.vertices, &self.normals);
 
         // calculate centroid
-        self.model.calculate_centroid(self.vertices);
+        // self.model.calculate_centroid(self.vertices);
         // etc etc
     }
 }

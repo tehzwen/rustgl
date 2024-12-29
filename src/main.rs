@@ -4,6 +4,9 @@
 #![allow(clippy::zero_ptr)]
 
 mod buffers;
+mod camera;
+mod material;
+mod obj;
 mod point_light;
 mod render;
 mod shader;
@@ -23,96 +26,6 @@ use render::{Model, Object};
 use std::{ffi::CString, time::Instant};
 
 const WINDOW_TITLE: &str = "VS Clone";
-// const VERTICES: [vertex::Vertex; 3] = [[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]];
-const VERTICES: [vertex::Vertex; 36] = [
-    // Front face
-    [-0.5, -0.5, 0.5],
-    [0.5, -0.5, 0.5],
-    [0.5, 0.5, 0.5],
-    [-0.5, -0.5, 0.5],
-    [0.5, 0.5, 0.5],
-    [-0.5, 0.5, 0.5],
-    // Back face
-    [-0.5, -0.5, -0.5],
-    [-0.5, 0.5, -0.5],
-    [0.5, 0.5, -0.5],
-    [-0.5, -0.5, -0.5],
-    [0.5, 0.5, -0.5],
-    [0.5, -0.5, -0.5],
-    // Left face
-    [-0.5, -0.5, -0.5],
-    [-0.5, -0.5, 0.5],
-    [-0.5, 0.5, 0.5],
-    [-0.5, -0.5, -0.5],
-    [-0.5, 0.5, 0.5],
-    [-0.5, 0.5, -0.5],
-    // Right face
-    [0.5, -0.5, -0.5],
-    [0.5, 0.5, -0.5],
-    [0.5, 0.5, 0.5],
-    [0.5, -0.5, -0.5],
-    [0.5, 0.5, 0.5],
-    [0.5, -0.5, 0.5],
-    // Top face
-    [-0.5, 0.5, -0.5],
-    [-0.5, 0.5, 0.5],
-    [0.5, 0.5, 0.5],
-    [-0.5, 0.5, -0.5],
-    [0.5, 0.5, 0.5],
-    [0.5, 0.5, -0.5],
-    // Bottom face
-    [-0.5, -0.5, -0.5],
-    [0.5, -0.5, -0.5],
-    [0.5, -0.5, 0.5],
-    [-0.5, -0.5, -0.5],
-    [0.5, -0.5, 0.5],
-    [-0.5, -0.5, 0.5],
-];
-
-const NORMALS: [vertex::Vertex; 36] = [
-    // Front face (0, 0, 1)
-    [0.0, 0.0, 1.0],
-    [0.0, 0.0, 1.0],
-    [0.0, 0.0, 1.0],
-    [0.0, 0.0, 1.0],
-    [0.0, 0.0, 1.0],
-    [0.0, 0.0, 1.0],
-    // Back face (0, 0, -1)
-    [0.0, 0.0, -1.0],
-    [0.0, 0.0, -1.0],
-    [0.0, 0.0, -1.0],
-    [0.0, 0.0, -1.0],
-    [0.0, 0.0, -1.0],
-    [0.0, 0.0, -1.0],
-    // Left face (-1, 0, 0)
-    [-1.0, 0.0, 0.0],
-    [-1.0, 0.0, 0.0],
-    [-1.0, 0.0, 0.0],
-    [-1.0, 0.0, 0.0],
-    [-1.0, 0.0, 0.0],
-    [-1.0, 0.0, 0.0],
-    // Right face (1, 0, 0)
-    [1.0, 0.0, 0.0],
-    [1.0, 0.0, 0.0],
-    [1.0, 0.0, 0.0],
-    [1.0, 0.0, 0.0],
-    [1.0, 0.0, 0.0],
-    [1.0, 0.0, 0.0],
-    // Top face (0, 1, 0)
-    [0.0, 1.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 1.0, 0.0],
-    // Bottom face (0, -1, 0)
-    [0.0, -1.0, 0.0],
-    [0.0, -1.0, 0.0],
-    [0.0, -1.0, 0.0],
-    [0.0, -1.0, 0.0],
-    [0.0, -1.0, 0.0],
-    [0.0, -1.0, 0.0],
-];
 
 fn main() {
     let mut gw = window::GameWindow::new(WINDOW_TITLE.to_string(), 800, 600);
@@ -121,51 +34,90 @@ fn main() {
     let sdl = gw.ctx.expect("failed to get window context");
     let mut shader_program: u32 = 0;
 
+    let cam = camera::Camera::new(
+        Point3::new(0.0, 15.0, 30.0),
+        Point3::new(0.0, 0.0, 0.0),
+        Vector3::new(0.0, 1.0, 0.0),
+    );
+
+    // load sphere obj
+    let sphere_data =
+        obj::parse_obj("resources/sphere-smooth.obj").expect("unable to load obj file for sphere");
+
     // initialize objects list
     let mut objects: Vec<Object> = Vec::new();
 
-    let mut triangle = Object::new(
+    let mut red: Object = Object::new(
         Model::new(),
         buffers::RenderBuffers::new(),
-        &VERTICES,
-        &NORMALS,
+        sphere_data.vertices.clone(),
+        sphere_data.normals.clone(),
+        // Box::new(material::Physical::default()),
+        Box::new(material::Physical::new(
+            Vector3::new(0.5, 0.0, 0.0),
+            3.0,
+            0.1,
+            1.5,
+        )),
     );
-    triangle.model.scale(Vector3::new(0.2, 0.2, 0.2));
-    objects.push(triangle);
+    red.model.translate(Vector3::new(0.0, 0.0, -15.0));
+    objects.push(red);
 
-
-    let mut another = Object::new(
+    let mut green = Object::new(
         Model::new(),
         buffers::RenderBuffers::new(),
-        &VERTICES,
-        &NORMALS,
+        sphere_data.vertices.clone(),
+        sphere_data.normals.clone(),
+        Box::new(material::Physical::new(
+            Vector3::new(0.0, 0.5, 0.0),
+            3.0,
+            17.1,
+            1.5,
+        )),
     );
-    another.model.scale(Vector3::new(0.2, 0.2, 0.2));
-    another.model.translate(Vector3::new(2.0, 0.0, 0.0));
+    green.model.translate(Vector3::new(65.0, 0.0, -15.0));
+    objects.push(green);
 
-    objects.push(another);
+    let mut blue = Object::new(
+        Model::new(),
+        buffers::RenderBuffers::new(),
+        sphere_data.vertices.clone(),
+        sphere_data.normals.clone(),
+        Box::new(material::Physical::new(
+            Vector3::new(0.0, 0.0, 0.5),
+            7.0,
+            0.1,
+            1.5,
+        )),
+    );
+    // another.model.scale(Vector3::new(0.4, 0.4, 0.4));
+    blue.model.translate(Vector3::new(-65.0, 0.0, -15.0));
+    objects.push(blue);
+
+
+
+
 
     let mut light = PointLight::new();
-    light.position.z = 50.0;
-    light.position.y = 100.0;
-    light.strength = 3.0;
+    light.position.z = 40.0;
+    light.position.y = 25.0;
+    light.strength = 2.0;
 
     unsafe {
         load_gl_with(|f_name| gl_win.get_proc_address(f_name.cast()));
-        // triangle.buffers.init(&VERTICES, &NORMALS);
         // initialize all of the objects buffers
         for object in &mut objects {
             object.init();
         }
 
-        let blinn_shader = shader::Shader::new("blinn".to_string());
+        let blinn_shader = shader::Shader::new("pbr".to_string());
         shader_program = blinn_shader.program;
 
         glClearColor(0.2, 0.3, 0.3, 1.0);
     }
 
     // Define the camera parameters (position, target, up direction)
-    let camera_position = Point3::new(0.0, 5.0, 3.0); // Example camera position
+    let camera_position = Point3::new(0.0, 15.0, 30.0); // Example camera position
     let camera_target = Point3::new(0.0, 0.0, 0.0); // Target point to look at
     let up_direction: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0); // Up direction for the camera
 
@@ -195,7 +147,6 @@ fn main() {
         // now the events are clear.
 
         // here's where we could change the world state if we had some.
-
         for object in &mut objects {
             // Rotate the model
             object
@@ -203,7 +154,7 @@ fn main() {
                 .rotate(Vector3::y_axis(), rotation_speed * 0.0005);
 
             // Calculate movement value
-            let move_val = f32::sin(start_time.elapsed().as_secs_f32() * 4.5) * 0.005;
+            let move_val = f32::sin(start_time.elapsed().as_secs_f32() * 5.5) * 0.5;
 
             // Translate the model
             object.model.translate(Vector3::new(
@@ -224,38 +175,25 @@ fn main() {
 
             // Get uniform locations for projection, view, and model matrices
             let projection_loc = shader::get_shader_location(shader_program, "projection");
-            let view_loc = shader::get_shader_location(shader_program, "view");
             let model_loc = shader::get_shader_location(shader_program, "model");
 
-            let light_position_loc = shader::get_shader_location(shader_program, "light.position");
-            let light_color_loc = shader::get_shader_location(shader_program, "light.color");
-            let light_strength_loc = shader::get_shader_location(shader_program, "light.strength");
-
             // Create the orthogonal projection matrix
+            let size = 100.0;
             let projection: Matrix4<f32> =
-                Matrix4::new_orthographic(-1.0, 1.0, -1.0, 1.0, 0.1, 100.0);
+                Matrix4::new_orthographic(-size, size, -size, size, 0.1, 10000.0);
 
-            // Create the view matrix using lookAt (right-handed coordinate system)
-            let view = Matrix4::look_at_rh(&camera_position, &camera_target, &up_direction);
+            glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.as_ptr());
+            cam.link_shader(shader_program);
+            light.link_shader(shader_program);
 
             // now loop over the objects and get specific uniform fields for the object
-
             for object in &mut objects {
                 let model = object.model.get_model_matrix();
                 // Send the matrices to the shader
-                glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.as_ptr());
-                glUniformMatrix4fv(view_loc, 1, GL_FALSE, view.as_ptr());
                 glUniformMatrix4fv(model_loc, 1, GL_FALSE, model.as_ptr());
 
-                // pointlight
-                glUniform3f(
-                    light_position_loc,
-                    light.position.x,
-                    light.position.y,
-                    light.position.z,
-                );
-                glUniform3f(light_color_loc, light.color.x, light.color.y, light.color.z); // Light color (white)
-                glUniform1f(light_strength_loc, light.strength); // Light strength
+                // link the material here
+                object.material.link_shader(shader_program);
 
                 // Bind buffers and draw
                 object.buffers.bind();

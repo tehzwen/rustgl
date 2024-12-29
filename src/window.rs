@@ -38,6 +38,7 @@ impl GameWindow {
         sdl.set_gl_context_major_version(3).unwrap();
         sdl.set_gl_context_minor_version(3).unwrap();
         sdl.set_gl_profile(GlProfile::Core).unwrap();
+        sdl.set_gl_multisample_count(4).unwrap();
 
         let mut flags = GlContextFlags::default();
         if cfg!(target_os = "macos") {

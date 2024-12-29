@@ -1,4 +1,5 @@
 use crate::vertex::Vertex;
+use nalgebra::Vector3;
 use ogl33::*;
 pub struct RenderBuffers {
     pub vao: u32,
@@ -17,7 +18,7 @@ impl RenderBuffers {
         }
     }
 
-    pub fn init(&mut self, vertices: &[Vertex], normals: &[Vertex]) {
+    pub fn init(&mut self, vertices: &Vec<Vector3<f32>>, normals: &Vec<Vector3<f32>>) {
         unsafe {
             // Generate and bind the VAO
             glGenVertexArrays(1, &mut self.vao);
@@ -28,10 +29,11 @@ impl RenderBuffers {
             glGenBuffers(1, &mut self.vbo_positions);
             assert_ne!(self.vbo_positions, 0);
             glBindBuffer(GL_ARRAY_BUFFER, self.vbo_positions);
+
             glBufferData(
                 GL_ARRAY_BUFFER,
-                (vertices.len() * size_of::<Vertex>()) as isize,
-                vertices.as_ptr().cast(),
+                (vertices.len() * std::mem::size_of::<Vector3<f32>>()) as isize,
+                vertices.as_slice().as_ptr().cast(),
                 GL_STATIC_DRAW,
             );
 
@@ -52,8 +54,8 @@ impl RenderBuffers {
             glBindBuffer(GL_ARRAY_BUFFER, self.vbo_normals);
             glBufferData(
                 GL_ARRAY_BUFFER,
-                (normals.len() * size_of::<Vertex>()) as isize,
-                normals.as_ptr().cast(),
+                (normals.len() * std::mem::size_of::<Vector3<f32>>()) as isize,
+                normals.as_slice().as_ptr().cast(),
                 GL_STATIC_DRAW,
             );
 
