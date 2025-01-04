@@ -3,7 +3,7 @@ use nalgebra::{Const, Matrix4, Point, Point3, Vector3};
 use ogl33::{glUniform1f, glUniform3f, glUniformMatrix4fv, GL_FALSE};
 
 pub struct Camera {
-    position: Point<f32, 3>,
+    pub position: Point<f32, 3>,
     target: Point<f32, 3>,
     up: Vector3<f32>,
 }
@@ -39,6 +39,10 @@ impl Camera {
             );
             glUniformMatrix4fv(view_loc, 1, GL_FALSE, self.view_matrix().as_ptr());
         }
+    }
+
+    pub fn look_at_target(&mut self, t: Point<f32, 3>) {
+        self.target = t;
     }
 
     fn view_matrix(&self) -> Matrix4<f32> {

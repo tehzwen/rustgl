@@ -23,41 +23,6 @@ impl ObjData {
     }
 }
 
-// pub fn parse_obj(file_path: &str) -> Result<ObjData, io::Error> {
-//     let path = Path::new(file_path);
-
-//     let obj = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS);
-//     let (models, materials) = obj.unwrap();
-
-//     let mut vertices: Vec<Vector3<f32>> = Vec::new();
-//     let mut normals: Vec<Vector3<f32>> = Vec::new();
-//     let mut uvs: Vec<Vector2<f32>> = Vec::new();
-//     let mut indices: Vec<u32> = Vec::new();
-
-//     for model in models {
-//         let mesh = &model.mesh;
-//         let num_vertices = mesh.positions.len() / 3;
-
-//         // data to fill
-//         indices = mesh.indices.clone();
-
-//         let (p, n, t) = (&mesh.positions, &mesh.normals, &mesh.texcoords);
-
-//         for i in 0..num_vertices {
-//             vertices.push(Vector3::new(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]));
-//             normals.push(Vector3::new(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]));
-//             uvs.push(Vector2::new(t[i * 2], t[i * 2 + 1]));
-//         }
-//     }
-
-//     Ok(ObjData {
-//         vertices,
-//         normals,
-//         tex_coords: uvs,
-//         indices,
-//     })
-// }
-
 pub fn parse_obj(file_path: &str) -> Result<ObjData, io::Error> {
     let loaded_file = tobj::load_obj(file_path, &tobj::GPU_LOAD_OPTIONS);
     assert!(loaded_file.is_ok());

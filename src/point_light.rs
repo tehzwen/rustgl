@@ -17,10 +17,10 @@ impl PointLight {
         }
     }
 
-    pub fn link_shader(&self, program: u32) {
-        let light_position_loc = get_shader_location(program, "light.position");
-        let light_color_loc = get_shader_location(program, "light.color");
-        let light_strength_loc = get_shader_location(program, "light.strength");
+    pub fn link_shader(&self, program: u32, index: i32) {
+        let light_position_loc = get_shader_location(program, &format!("pointLights[{index}].position"));
+        let light_color_loc = get_shader_location(program, &format!("pointLights[{index}].color"));
+        let light_strength_loc = get_shader_location(program, &format!("pointLights[{index}].strength"));
 
         unsafe {
             glUniform3f(

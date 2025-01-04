@@ -13,8 +13,8 @@ uniform float ao;
 
 uniform vec3 camera_position;
 
-
-uniform PointLight light;
+uniform int numPointLights;
+uniform PointLight[4] pointLights;
 
 in vec3 fragPosition; // Position of the fragment in world space
 in vec3 normal;       // Normal of the fragment in world space
@@ -75,6 +75,8 @@ void main()
     vec3 N = normalize(normal);
     vec3 V = normalize(camera_position - fragPosition);
 
+    vec3 total = vec3(0.0, 0.0, 0.0);
+
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)
     vec3 F0 = vec3(0.04);
@@ -83,46 +85,50 @@ void main()
     // reflectance equation
     vec3 Lo = vec3(0.0);
 
-    // calculate per-light radiance
-    vec3 L = normalize(light.position - fragPosition);
-    vec3 H = normalize(V + L);
-    //float distance = length(light.position - fragPosition);
-    //float attenuation = 1.0 / (distance * distance);
-    //vec3 radiance = light.color * attenuation * light.strength;
-    vec3 radiance = light.color * light.strength;
+    for (int i = 0; i < numPointLights; i++) {
+        // calculate per-light radiance
+        vec3 L = normalize(pointLights[i].position - fragPosition);
+        vec3 H = normalize(V + L);
+        //float distance = length(pointLights[i].position - fragPosition);
+        //float attenuation = 1.0 / (distance * distance);
+        //vec3 radiance = pointLights[i].color * attenuation * pointLights[i].strength;
+        vec3 radiance = pointLights[i].color * pointLights[i].strength;
 
-    // Cook-Torrance BRDF
-    float NDF = DistributionGGX(N, H, roughness);
-    float G   = GeometrySmith(N, V, L, roughness);
-    vec3 F    = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, roughness);
+        float G   = GeometrySmith(N, V, L, roughness);
+        vec3 F    = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
 
-    vec3 numerator    = NDF * G * F;
-    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
-    vec3 specular = numerator / denominator;
+        vec3 numerator    = NDF * G * F;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;
 
-    // kS is equal to Fresnel
-    vec3 kS = F;
-    // for energy conservation, the diffuse and specular light can't
-    // be above 1.0 (unless the surface emits light); to preserve this
-    // relationship the diffuse component (kD) should equal 1.0 - kS.
-    vec3 kD = vec3(1.0) - kS;
-    // multiply kD by the inverse metalness such that only non-metals
-    // have diffuse lighting, or a linear blend if partly metal (pure metals
-    // have no diffuse light).
-    kD *= 1.0 - metallic;
+        // kS is equal to Fresnel
+        vec3 kS = F;
+        // for energy conservation, the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - metallic;
 
-    // scale light by NdotL
-    float NdotL = max(dot(N, L), 0.0);
 
-    // add to outgoing radiance Lo
-    Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);
 
+        // add to outgoing radiance Lo
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+
+        total += Lo;
+    }
 
     // ambient lighting (note that the next IBL tutorial will replace
     // this ambient lighting with environment lighting).
     vec3 ambient = vec3(0.03) * albedo * ao;
 
-    vec3 color = ambient + Lo;
+    vec3 color = ambient + total;
 
     // HDR tonemapping
     color = color / (color + vec3(1.0));
