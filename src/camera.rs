@@ -1,6 +1,6 @@
 use crate::shader::get_shader_location;
 use nalgebra::{Const, Matrix4, Point, Point3, Vector3};
-use ogl33::{glUniform1f, glUniform3f, glUniformMatrix4fv, GL_FALSE};
+use gl::types::*;
 
 pub struct Camera {
     pub position: Point<f32, 3>,
@@ -31,13 +31,13 @@ impl Camera {
         let view_loc = get_shader_location(program, "view");
 
         unsafe {
-            glUniform3f(
+            gl::Uniform3f(
                 position_loc,
                 self.position.x,
                 self.position.y,
                 self.position.z,
             );
-            glUniformMatrix4fv(view_loc, 1, GL_FALSE, self.view_matrix().as_ptr());
+            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, self.view_matrix().as_ptr());
         }
     }
 

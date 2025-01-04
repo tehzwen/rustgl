@@ -2,7 +2,8 @@
 
 use std::{collections::HashMap, time::Instant};
 
-use beryllium::events::Event;
+use sdl2::event::Event as SDL2Event;
+use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, Sdl};
 use nalgebra::{Point, Point3, Vector3};
 
 use crate::{camera::Camera, point_light::PointLight, render::Object};
@@ -43,13 +44,13 @@ pub struct Scene {
 
     pub on_start: fn(&mut Scene),
     pub on_update: fn(&mut Scene),
-    pub on_event: fn(&mut Scene, beryllium::events::Event),
+    pub on_event: fn(&mut Scene, SDL2Event),
 }
 
 impl Scene {
     pub fn new() -> Scene {
         fn no_op(sc: &mut Scene) {}
-        fn no_op_event(sc: &mut Scene, ev: beryllium::events::Event) {}
+        fn no_op_event(sc: &mut Scene, ev: SDL2Event) {}
         Scene {
             scene_time: Instant::now(),
             active_camera: "".to_string(),

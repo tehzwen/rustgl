@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use ogl33::{glUniform1f, glUniform3f};
+use gl::types::*;
 
 use crate::shader::get_shader_location;
 
@@ -43,10 +43,10 @@ impl Material for Physical {
         let ao_loc = get_shader_location(program, "ao");
 
         unsafe {
-            glUniform3f(albedo_loc, self.albedo.x, self.albedo.y, self.albedo.z);
-            glUniform1f(metallic_loc, self.metallic);
-            glUniform1f(roughness_loc, self.roughness);
-            glUniform1f(ao_loc, self.ao);
+            gl::Uniform3f(albedo_loc, self.albedo.x, self.albedo.y, self.albedo.z);
+            gl::Uniform1f(metallic_loc, self.metallic);
+            gl::Uniform1f(roughness_loc, self.roughness);
+            gl::Uniform1f(ao_loc, self.ao);
         }
     }
 }

@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use ogl33::{glUniform1f, glUniform3f};
+use gl::types::*;
 
 use crate::shader::get_shader_location;
 
@@ -23,14 +23,14 @@ impl PointLight {
         let light_strength_loc = get_shader_location(program, &format!("pointLights[{index}].strength"));
 
         unsafe {
-            glUniform3f(
+            gl::Uniform3f(
                 light_position_loc,
                 self.position.x,
                 self.position.y,
                 self.position.z,
             );
-            glUniform3f(light_color_loc, self.color.x, self.color.y, self.color.z);
-            glUniform1f(light_strength_loc, self.strength);
+            gl::Uniform3f(light_color_loc, self.color.x, self.color.y, self.color.z);
+            gl::Uniform1f(light_strength_loc, self.strength);
         }
     }
 }
