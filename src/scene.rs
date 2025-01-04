@@ -3,6 +3,7 @@
 use std::{collections::HashMap, time::Instant};
 
 use beryllium::events::Event;
+use nalgebra::{Point, Point3, Vector3};
 
 use crate::{camera::Camera, point_light::PointLight, render::Object};
 
@@ -38,6 +39,7 @@ pub struct Scene {
     pub point_lights: Vec<PointLight>,
     pub cameras: HashMap<String, Camera>,
     pub settings: Settings,
+    pub player_target: Vector3<f32>,
 
     pub on_start: fn(&mut Scene),
     pub on_update: fn(&mut Scene),
@@ -55,6 +57,7 @@ impl Scene {
             point_lights: Vec::new(),
             cameras: HashMap::new(),
             settings: Settings::default(),
+            player_target: Vector3::zeros(),
 
             on_start: no_op,
             on_update: no_op,

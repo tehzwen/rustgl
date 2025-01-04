@@ -1,14 +1,14 @@
 use std::time::Instant;
 
 use beryllium::events::Event;
-use nalgebra::{Matrix4, Point3, Vector3};
+use nalgebra::{Matrix4, Point, Point3, Vector3};
 
 use crate::{
     buffers,
     camera::Camera,
     material, obj,
     point_light::PointLight,
-    raycast::Ray,
+    raycast::{ray_intersect_bb_projection, Ray},
     render::{Model, Object},
     scene::{Scene, Settings},
 };
@@ -24,7 +24,7 @@ pub fn scene_one(settings: Settings) -> Scene {
         sc.cameras.insert(
             "main".to_string(),
             Camera::new(
-                Point3::new(0.0, 105.0, 300.0),
+                Point3::new(0.0, 300.0, 300.0),
                 Point3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, 1.0, 0.0),
             ),
@@ -90,7 +90,7 @@ pub fn scene_one(settings: Settings) -> Scene {
                 Vector3::new(0.8, 0.6, 0.0),
                 0.0,
                 150.1,
-                0.0001,
+                0.1,
             )),
         );
         // main_plane.model.scale(Vector3::new(100.0, 100.0, 100.0));
@@ -122,7 +122,7 @@ pub fn scene_one(settings: Settings) -> Scene {
         let mut light = PointLight::new();
         light.position.z = 40.0;
         light.position.y = 25.0;
-        light.strength = 2.0;
+        light.strength = 200.0;
 
         sc.point_lights.push(light);
 
@@ -130,7 +130,7 @@ pub fn scene_one(settings: Settings) -> Scene {
         light2.position.z = 40.0;
         light2.position.x = 100.0;
         light2.position.y = 25.0;
-        light2.strength = 0.5;
+        light2.strength = 50.0;
 
         sc.point_lights.push(light2);
     }
@@ -163,22 +163,41 @@ pub fn scene_one(settings: Settings) -> Scene {
         let mut player = sc.object_map.get_mut(&"player".to_string()).unwrap();
         let mut main_camera = sc.cameras.get_mut(&"main".to_string()).unwrap();
 
-        main_camera.look_at_target(Point3::new(
-            player.model.position.x,
-            player.model.position.y,
-            player.model.position.z,
-        ));
+        // main_camera.look_at_target(Point3::new(
+        //     player.model.position.x,
+        //     player.model.position.y,
+        //     player.model.position.z,
+        // ));
 
         // main_camera.position = Point3::new(
         //     player.model.position.x + 200.0, // Slight offset to ensure it's not at the same position
         //     player.model.position.x + 200.0,
         //     player.model.position.z + 200.0, // Slight offset along the z-axis
         // );
+
+        // move the player toward the target
+        player.model.position = player.model.position.lerp(&sc.player_target, 0.01);
+        // println!("{} {}", sc.player_target, player.model.position);
     }
     sc.on_update = on_update;
 
     fn on_event(sc: &mut Scene, e: Event) {
         match e {
+            Event::MouseMotion {
+                win_id,
+                mouse_id,
+                button_state,
+                x_win,
+                y_win,
+                x_delta,
+                y_delta,
+            } => {
+                if let Some((intersect_point)) = ray_intersect_bb_projection(sc, x_win, y_win) {
+                    let first_light = sc.point_lights.get_mut(0).unwrap();
+                    first_light.position =
+                        Vector3::new(intersect_point.x, first_light.position.y, intersect_point.z)
+                }
+            }
             Event::MouseButton {
                 win_id,
                 mouse_id,
@@ -189,43 +208,18 @@ pub fn scene_one(settings: Settings) -> Scene {
                 y,
             } => {
                 if pressed {
-                    let aspect: f32 = (sc.settings.screen_width / sc.settings.screen_height) as f32;
-                    let projection =
-                        Matrix4::new_perspective(aspect, sc.settings.fovy, 0.1, 10000.0);
-                    let main_camera = sc.cameras.get_mut(&sc.active_camera).unwrap();
-
-                    let view_projection_matrix = projection * main_camera.view_matrix();
-                    let inverse_vp_matrix = view_projection_matrix.try_inverse().unwrap();
-
-                    println!("{}, {}, {}", button, x, y);
-
-                    let ndc_x = (x as f32 / sc.settings.screen_width as f32) * 2.0 - 1.0;
-                    let ndc_y = 1.0 - (y as f32 / sc.settings.screen_height as f32) * 2.0; // Flip Y-axis
-
-                    // Convert NDC to world coordinates
-                    let ndc_point = Point3::new(ndc_x, ndc_y, -1.0);
-                    let world_point = inverse_vp_matrix.transform_point(&ndc_point);
-                    let ray_direction = (world_point - main_camera.position).normalize();
-
-                    // Create ray
-                    let ray = Ray {
-                        origin: main_camera.position,
-                        direction: ray_direction,
-                    };
-
-                    // get the plane's bounding box and compare it here
-                    let floor = sc.object_map.get_mut(&"main_plain".to_string()).unwrap();
-
-                    // Check for intersection
-                    if let Some((t_min, _)) = ray.intersect_bounding_box(&floor.bounding_box) {
-                        println!("Intersection detected at t = {}", t_min);
-
-                        // move the first light to that position
-                        let first_light = sc.point_lights.get_mut(0).unwrap();
-                        first_light.position =
-                            Vector3::new(t_min.x, first_light.position.y, t_min.z)
-                    } else {
-                        println!("No intersection");
+                    if let Some((intersect_point)) = ray_intersect_bb_projection(sc, x, y) {
+                        let player = sc.object_map.get_mut(&"player".to_string()).unwrap();
+                        sc.player_target = Vector3::new(intersect_point.x, player.model.position.y, intersect_point.z);
+                        // println!("{} {}", sc.player_target, player.model.position);
+                        // let new = player.model.position.slerp(&sc.player_target, 1.0);
+                        // println!("{}", new);
+                        // player.model.position = Vector3::new(
+                        //     intersect_point.x,
+                        //     player.model.position.y,
+                        //     intersect_point.z,
+                        // )
+                        // sc.player_target = Vector3::new(intersect_point.x, 0.0, intersect_point.z)
                     }
                 }
             }

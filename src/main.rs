@@ -87,6 +87,8 @@ fn main() {
             // Clear the screen
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glEnable(GL_DEPTH_TEST);
+            glEnable(GL_MULTISAMPLE);
+
 
             // Use the shader program
             glUseProgram(shader_program);
