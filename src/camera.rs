@@ -45,7 +45,7 @@ impl Camera {
         self.target = t;
     }
 
-    fn view_matrix(&self) -> Matrix4<f32> {
+    pub fn view_matrix(&self) -> Matrix4<f32> {
         return Matrix4::look_at_rh(&self.position, &self.target, &self.up);
     }
 }

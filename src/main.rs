@@ -5,9 +5,11 @@
 
 mod buffers;
 mod camera;
+mod collision;
 mod material;
 mod obj;
 mod point_light;
+mod raycast;
 mod render;
 mod scene;
 mod scene_one;
@@ -29,8 +31,8 @@ use render::{Model, Object};
 use std::{collections::HashMap, ffi::CString, time::Instant};
 
 const WINDOW_TITLE: &str = "VS Clone";
-const WINDOW_HEIGHT: i32 = 600;
-const WINDOW_WIDTH: i32 = 800;
+const WINDOW_HEIGHT: i32 = 1000;
+const WINDOW_WIDTH: i32 = 1000;
 
 fn main() {
     let mut gw = window::GameWindow::new(WINDOW_TITLE.to_string(), WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -58,6 +60,15 @@ fn main() {
     scene.start();
 
     'main_loop: loop {
+        let aspect: f32 = (WINDOW_WIDTH / WINDOW_HEIGHT) as f32;
+        let projection = Matrix4::new_perspective(aspect, 45.0_f32.to_radians(), 0.1, 10000.0);
+
+        // get camera
+        let mut main_camera = scene.cameras.get_mut(&scene.active_camera).unwrap();
+
+        let view_projection_matrix = projection * main_camera.view_matrix();
+        let inverse_vp_matrix = view_projection_matrix.try_inverse().unwrap();
+
         // handle events this frame
         while let Some((event, _timestamp)) = sdl.poll_events() {
             match event {
@@ -75,6 +86,35 @@ fn main() {
                 } => {
                     if pressed {
                         println!("{}, {}, {}", button, x, y);
+
+                        let ndc_x = (x as f32 / WINDOW_HEIGHT as f32) * 2.0 - 1.0;
+                        let ndc_y = 1.0 - (y as f32 / WINDOW_WIDTH as f32) * 2.0; // Flip Y-axis
+
+                        // Convert NDC to world coordinates
+                        let ndc_point = Point3::new(ndc_x, ndc_y, -1.0);
+                        let world_point = inverse_vp_matrix.transform_point(&ndc_point);
+                        let ray_direction = (world_point - main_camera.position).normalize();
+
+                        // Create ray
+                        let ray = raycast::Ray {
+                            origin: main_camera.position,
+                            direction: ray_direction,
+                        };
+
+                        // get the plane's bounding box and compare it here
+                        let floor = scene.object_map.get_mut(&"main_plain".to_string()).unwrap();
+
+                        // Check for intersection
+                        if let Some((t_min, _)) = ray.intersect_bounding_box(&floor.bounding_box) {
+                            println!("Intersection detected at t = {}", t_min);
+
+                            // move the first light to that position
+                            let first_light = scene.point_lights.get_mut(0).unwrap();
+                            first_light.position =
+                                Vector3::new(t_min.x, first_light.position.y, t_min.z)
+                        } else {
+                            println!("No intersection");
+                        }
                     }
                 }
                 Event::Key {
@@ -159,16 +199,12 @@ fn main() {
             // let projection: Matrix4<f32> =
             //     Matrix4::new_orthographic(-size, size, -size, size, 0.1, 10000.0);
 
-            let aspect: f32 = (WINDOW_WIDTH / WINDOW_HEIGHT) as f32;
-            let projection = Matrix4::new_perspective(aspect, 45.0_f32.to_radians(), 0.1, 10000.0);
-
             glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.as_ptr());
             scene
                 .cameras
                 .get_mut(&scene.active_camera)
                 .unwrap()
                 .link_shader(shader_program);
-
             for (index, pl) in scene.point_lights.iter_mut().enumerate() {
                 pl.link_shader(shader_program, index.try_into().unwrap());
             }

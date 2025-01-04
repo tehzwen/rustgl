@@ -3,7 +3,12 @@ extern crate nalgebra as na;
 use na::{Matrix4, UnitQuaternion, Vector3};
 use nalgebra::{OVector, Point, Unit, Vector};
 
-use crate::{buffers::RenderBuffers, material::Material, vertex::Vertex};
+use crate::{
+    buffers::RenderBuffers,
+    collision::{self, BoundingBox},
+    material::Material,
+    vertex::Vertex,
+};
 
 pub struct Model {
     pub position: Vector3<f32>,
@@ -75,6 +80,7 @@ pub struct Object {
     pub material: Box<dyn Material>,
     pub vertices: Vec<Vector3<f32>>,
     pub normals: Vec<Vector3<f32>>,
+    pub bounding_box: collision::BoundingBox,
 }
 
 impl Object {
@@ -91,6 +97,7 @@ impl Object {
             vertices: v,
             normals: n,
             material,
+            bounding_box: BoundingBox::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
         }
     }
 
@@ -101,5 +108,8 @@ impl Object {
         // calculate centroid
         // self.model.calculate_centroid(self.vertices);
         // etc etc
+
+        self.bounding_box = collision::get_bounding_box(&self.vertices);
+        println!("{:?}", self.bounding_box);
     }
 }

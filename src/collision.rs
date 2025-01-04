@@ -1,3 +1,6 @@
+use nalgebra::Vector3;
+
+#[derive(Debug)]
 pub struct BoundingBox {
     pub x_min: f32,
     pub x_max: f32,
@@ -27,7 +30,7 @@ impl BoundingBox {
     }
 }
 
-pub fn get_bounding_box(vertices: &[f32]) -> BoundingBox {
+pub fn get_bounding_box(vertices: &[Vector3<f32>]) -> BoundingBox {
     // Initialize min and max values
     let mut x_min = f32::INFINITY;
     let mut x_max = f32::NEG_INFINITY;
@@ -36,11 +39,11 @@ pub fn get_bounding_box(vertices: &[f32]) -> BoundingBox {
     let mut z_min = f32::INFINITY;
     let mut z_max = f32::NEG_INFINITY;
 
-    // Iterate over vertices in steps of 3 (x, y, z)
-    for chunk in vertices.chunks_exact(3) {
-        let x = chunk[0];
-        let y = chunk[1];
-        let z = chunk[2];
+    // Iterate over vertices
+    for vertex in vertices {
+        let x = vertex.x;
+        let y = vertex.y;
+        let z = vertex.z;
 
         if x > x_max {
             x_max = x;
@@ -62,5 +65,5 @@ pub fn get_bounding_box(vertices: &[f32]) -> BoundingBox {
         }
     }
 
-    return BoundingBox::new(x_min, x_max, y_min, y_max, z_min, z_max);
+    BoundingBox::new(x_min, x_max, y_min, y_max, z_min, z_max)
 }

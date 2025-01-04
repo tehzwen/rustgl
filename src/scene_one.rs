@@ -21,7 +21,7 @@ pub fn scene_one() -> Scene {
         sc.cameras.insert(
             "main".to_string(),
             Camera::new(
-                Point3::new(0.0, 150.0, 300.0),
+                Point3::new(0.0, 105.0, 300.0),
                 Point3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, 1.0, 0.0),
             ),
@@ -90,7 +90,7 @@ pub fn scene_one() -> Scene {
                 0.0001,
             )),
         );
-        main_plane.model.scale(Vector3::new(100.0, 100.0, 100.0));
+        // main_plane.model.scale(Vector3::new(100.0, 100.0, 100.0));
         sc.object_map.insert("main_plain".to_string(), main_plane);
 
         // Player cube
@@ -166,11 +166,11 @@ pub fn scene_one() -> Scene {
             player.model.position.z,
         ));
 
-        main_camera.position = Point3::new(
-            player.model.position.x + 200.0, // Slight offset to ensure it's not at the same position
-            player.model.position.x + 200.0,
-            player.model.position.z + 200.0, // Slight offset along the z-axis
-        );
+        // main_camera.position = Point3::new(
+        //     player.model.position.x + 200.0, // Slight offset to ensure it's not at the same position
+        //     player.model.position.x + 200.0,
+        //     player.model.position.z + 200.0, // Slight offset along the z-axis
+        // );
     }
     sc.on_update = on_update;
 

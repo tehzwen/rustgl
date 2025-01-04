@@ -1,8 +1,10 @@
 use nalgebra::{Point3, Vector3};
 
-struct Ray {
-    origin: Point3<f32>,
-    direction: Vector3<f32>,
+use crate::collision::BoundingBox;
+
+pub struct Ray {
+    pub origin: Point3<f32>,
+    pub direction: Vector3<f32>,
 }
 
 struct Plane {
@@ -37,7 +39,7 @@ impl Ray {
     /// Checks if the ray intersects with a bounding box.
     ///
     /// Returns the t_min and t_max values if there's an intersection.
-    pub fn intersect_bounding_box(&self, bbox: &BoundingBox) -> Option<(f32, f32)> {
+    pub fn intersect_bounding_box(&self, bbox: &BoundingBox) -> Option<(Point3<f32>, Point3<f32>)> {
         let inv_dir = Vector3::new(
             1.0 / self.direction.x,
             1.0 / self.direction.y,
@@ -58,7 +60,9 @@ impl Ray {
         if t_min > t_max || t_max < 0.0 {
             None
         } else {
-            Some((t_min, t_max))
+            let entry_point = self.origin + self.direction * t_min;
+            let exit_point = self.origin + self.direction * t_max;
+            Some((entry_point, exit_point))
         }
     }
 }
