@@ -66,3 +66,42 @@ impl Ray {
         }
     }
 }
+
+pub fn ray_intersect_bb_projection() {
+    let aspect: f32 = (sc.settings.screen_width / sc.settings.screen_height) as f32;
+    let projection = Matrix4::new_perspective(aspect, sc.settings.fovy, 0.1, 10000.0);
+    let main_camera = sc.cameras.get_mut(&sc.active_camera).unwrap();
+
+    let view_projection_matrix = projection * main_camera.view_matrix();
+    let inverse_vp_matrix = view_projection_matrix.try_inverse().unwrap();
+
+    println!("{}, {}, {}", button, x, y);
+
+    let ndc_x = (x as f32 / sc.settings.screen_width as f32) * 2.0 - 1.0;
+    let ndc_y = 1.0 - (y as f32 / sc.settings.screen_height as f32) * 2.0; // Flip Y-axis
+
+    // Convert NDC to world coordinates
+    let ndc_point = Point3::new(ndc_x, ndc_y, -1.0);
+    let world_point = inverse_vp_matrix.transform_point(&ndc_point);
+    let ray_direction = (world_point - main_camera.position).normalize();
+
+    // Create ray
+    let ray = Ray {
+        origin: main_camera.position,
+        direction: ray_direction,
+    };
+
+    // get the plane's bounding box and compare it here
+    let floor = sc.object_map.get_mut(&"main_plain".to_string()).unwrap();
+
+    // Check for intersection
+    if let Some((t_min, _)) = ray.intersect_bounding_box(&floor.bounding_box) {
+        println!("Intersection detected at t = {}", t_min);
+
+        // move the first light to that position
+        let first_light = sc.point_lights.get_mut(0).unwrap();
+        first_light.position = Vector3::new(t_min.x, first_light.position.y, t_min.z)
+    } else {
+        println!("No intersection");
+    }
+}

@@ -1,20 +1,23 @@
 use std::time::Instant;
 
-use nalgebra::{Point3, Vector3};
+use beryllium::events::Event;
+use nalgebra::{Matrix4, Point3, Vector3};
 
 use crate::{
     buffers,
     camera::Camera,
     material, obj,
     point_light::PointLight,
+    raycast::Ray,
     render::{Model, Object},
-    scene::Scene,
+    scene::{Scene, Settings},
 };
 
 const ROTATION_SPEED: f32 = std::f32::consts::PI * 3.0;
 
-pub fn scene_one() -> Scene {
+pub fn scene_one(settings: Settings) -> Scene {
     let mut sc = Scene::new();
+    sc.settings = settings;
 
     fn on_start(sc: &mut Scene) {
         sc.active_camera = "main".to_string();
@@ -173,6 +176,117 @@ pub fn scene_one() -> Scene {
         // );
     }
     sc.on_update = on_update;
+
+    fn on_event(sc: &mut Scene, e: Event) {
+        match e {
+            Event::MouseButton {
+                win_id,
+                mouse_id,
+                button,
+                pressed,
+                clicks,
+                x,
+                y,
+            } => {
+                if pressed {
+                    let aspect: f32 = (sc.settings.screen_width / sc.settings.screen_height) as f32;
+                    let projection =
+                        Matrix4::new_perspective(aspect, sc.settings.fovy, 0.1, 10000.0);
+                    let main_camera = sc.cameras.get_mut(&sc.active_camera).unwrap();
+
+                    let view_projection_matrix = projection * main_camera.view_matrix();
+                    let inverse_vp_matrix = view_projection_matrix.try_inverse().unwrap();
+
+                    println!("{}, {}, {}", button, x, y);
+
+                    let ndc_x = (x as f32 / sc.settings.screen_width as f32) * 2.0 - 1.0;
+                    let ndc_y = 1.0 - (y as f32 / sc.settings.screen_height as f32) * 2.0; // Flip Y-axis
+
+                    // Convert NDC to world coordinates
+                    let ndc_point = Point3::new(ndc_x, ndc_y, -1.0);
+                    let world_point = inverse_vp_matrix.transform_point(&ndc_point);
+                    let ray_direction = (world_point - main_camera.position).normalize();
+
+                    // Create ray
+                    let ray = Ray {
+                        origin: main_camera.position,
+                        direction: ray_direction,
+                    };
+
+                    // get the plane's bounding box and compare it here
+                    let floor = sc.object_map.get_mut(&"main_plain".to_string()).unwrap();
+
+                    // Check for intersection
+                    if let Some((t_min, _)) = ray.intersect_bounding_box(&floor.bounding_box) {
+                        println!("Intersection detected at t = {}", t_min);
+
+                        // move the first light to that position
+                        let first_light = sc.point_lights.get_mut(0).unwrap();
+                        first_light.position =
+                            Vector3::new(t_min.x, first_light.position.y, t_min.z)
+                    } else {
+                        println!("No intersection");
+                    }
+                }
+            }
+            Event::Key {
+                win_id,
+                pressed,
+                repeat,
+                scancode,
+                keycode,
+                modifiers,
+            } => {
+                if pressed {
+                    // Check for WASD keys
+                    let player_cube = sc.object_map.get_mut(&"player".to_string()).unwrap();
+                    let move_speed: f32 = 2.5;
+
+                    match keycode {
+                        SDLK_w => {
+                            println!("W key pressed");
+                            // handle W key press
+                            player_cube.model.translate(Vector3::new(
+                                player_cube.model.position.x,
+                                player_cube.model.position.y,
+                                player_cube.model.position.z + move_speed,
+                            ));
+                        }
+                        SDLK_a => {
+                            println!("A key pressed");
+                            // handle A key press
+                            player_cube.model.translate(Vector3::new(
+                                player_cube.model.position.x + move_speed,
+                                player_cube.model.position.y,
+                                player_cube.model.position.z,
+                            ));
+                        }
+                        SDLK_s => {
+                            println!("S key pressed");
+                            // handle S key press
+                            player_cube.model.translate(Vector3::new(
+                                player_cube.model.position.x,
+                                player_cube.model.position.y,
+                                player_cube.model.position.z - move_speed,
+                            ));
+                        }
+                        SDLK_d => {
+                            println!("D key pressed");
+                            // handle D key press
+                            player_cube.model.translate(Vector3::new(
+                                player_cube.model.position.x - move_speed,
+                                player_cube.model.position.y,
+                                player_cube.model.position.z,
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+    sc.on_event = on_event;
 
     return sc;
 }
