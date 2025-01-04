@@ -1,6 +1,8 @@
 use crate::vertex::Vertex;
 use nalgebra::Vector3;
-use ogl33::*;
+use gl::types::*;
+
+
 pub struct RenderBuffers {
     pub vao: u32,
     pub vbo_positions: u32,
@@ -21,54 +23,54 @@ impl RenderBuffers {
     pub fn init(&mut self, vertices: &Vec<Vector3<f32>>, normals: &Vec<Vector3<f32>>) {
         unsafe {
             // Generate and bind the VAO
-            glGenVertexArrays(1, &mut self.vao);
+            gl::GenVertexArrays(1, &mut self.vao);
             assert_ne!(self.vao, 0);
-            glBindVertexArray(self.vao);
+            gl::BindVertexArray(self.vao);
 
             // Generate and bind the position buffer
-            glGenBuffers(1, &mut self.vbo_positions);
+            gl::GenBuffers(1, &mut self.vbo_positions);
             assert_ne!(self.vbo_positions, 0);
-            glBindBuffer(GL_ARRAY_BUFFER, self.vbo_positions);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo_positions);
 
-            glBufferData(
-                GL_ARRAY_BUFFER,
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
                 (vertices.len() * std::mem::size_of::<Vector3<f32>>()) as isize,
                 vertices.as_slice().as_ptr().cast(),
-                GL_STATIC_DRAW,
+                gl::STATIC_DRAW,
             );
 
             // Position attribute
-            glVertexAttribPointer(
+            gl::VertexAttribPointer(
                 0,
                 3,
-                GL_FLOAT,
-                GL_FALSE,
+                gl::FLOAT,
+                gl::FALSE,
                 size_of::<Vertex>().try_into().unwrap(),
                 std::ptr::null(),
             );
-            glEnableVertexAttribArray(0);
+            gl::EnableVertexAttribArray(0);
 
             // Generate and bind the normal buffer
-            glGenBuffers(1, &mut self.vbo_normals);
+            gl::GenBuffers(1, &mut self.vbo_normals);
             assert_ne!(self.vbo_normals, 0);
-            glBindBuffer(GL_ARRAY_BUFFER, self.vbo_normals);
-            glBufferData(
-                GL_ARRAY_BUFFER,
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo_normals);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
                 (normals.len() * std::mem::size_of::<Vector3<f32>>()) as isize,
                 normals.as_slice().as_ptr().cast(),
-                GL_STATIC_DRAW,
+                gl::STATIC_DRAW,
             );
 
             // Normal attribute
-            glVertexAttribPointer(
+            gl::VertexAttribPointer(
                 1,
                 3,
-                GL_FLOAT,
-                GL_FALSE,
+                gl::FLOAT,
+                gl::FALSE,
                 size_of::<Vertex>().try_into().unwrap(),
                 std::ptr::null(),
             );
-            glEnableVertexAttribArray(1);
+            gl::EnableVertexAttribArray(1);
 
             self.size = vertices
                 .len()
@@ -76,19 +78,19 @@ impl RenderBuffers {
                 .expect("failed to cast vertices size to i32");
 
             // Unbind the VAO
-            glBindVertexArray(0);
+            gl::BindVertexArray(0);
         }
     }
 
     pub fn bind(&self) {
         unsafe {
-            glBindVertexArray(self.vao);
+            gl::BindVertexArray(self.vao);
         }
     }
 
     pub fn unbind(&self) {
         unsafe {
-            glBindVertexArray(0);
+            gl::BindVertexArray(0);
         }
     }
 }

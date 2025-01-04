@@ -1,7 +1,8 @@
 use std::time::Instant;
 
-use beryllium::events::Event;
 use nalgebra::{Matrix4, Point, Point3, Vector3};
+use sdl2::event::Event as SDL2Event;
+use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, Sdl};
 
 use crate::{
     buffers,
@@ -181,100 +182,87 @@ pub fn scene_one(settings: Settings) -> Scene {
     }
     sc.on_update = on_update;
 
-    fn on_event(sc: &mut Scene, e: Event) {
+    fn on_event(sc: &mut Scene, e: SDL2Event) {
         match e {
-            Event::MouseMotion {
-                win_id,
-                mouse_id,
-                button_state,
-                x_win,
-                y_win,
-                x_delta,
-                y_delta,
+            SDL2Event::MouseMotion {
+                x, y, xrel, yrel, ..
             } => {
-                if let Some((intersect_point)) = ray_intersect_bb_projection(sc, x_win, y_win) {
+                if let Some((intersect_point)) = ray_intersect_bb_projection(sc, x, y) {
                     let first_light = sc.point_lights.get_mut(0).unwrap();
                     first_light.position =
                         Vector3::new(intersect_point.x, first_light.position.y, intersect_point.z)
                 }
             }
-            Event::MouseButton {
-                win_id,
-                mouse_id,
-                button,
-                pressed,
-                clicks,
+            SDL2Event::MouseButtonDown {
+                mouse_btn: MouseButton::Left,
                 x,
                 y,
+                ..
             } => {
-                if pressed {
-                    if let Some((intersect_point)) = ray_intersect_bb_projection(sc, x, y) {
-                        let player = sc.object_map.get_mut(&"player".to_string()).unwrap();
-                        sc.player_target = Vector3::new(intersect_point.x, player.model.position.y, intersect_point.z);
-                        // println!("{} {}", sc.player_target, player.model.position);
-                        // let new = player.model.position.slerp(&sc.player_target, 1.0);
-                        // println!("{}", new);
-                        // player.model.position = Vector3::new(
-                        //     intersect_point.x,
-                        //     player.model.position.y,
-                        //     intersect_point.z,
-                        // )
-                        // sc.player_target = Vector3::new(intersect_point.x, 0.0, intersect_point.z)
-                    }
+                if let Some((intersect_point)) = ray_intersect_bb_projection(sc, x, y) {
+                    let player = sc.object_map.get_mut(&"player".to_string()).unwrap();
+                    sc.player_target = Vector3::new(
+                        intersect_point.x,
+                        player.model.position.y,
+                        intersect_point.z,
+                    );
+                    // println!("{} {}", sc.player_target, player.model.position);
+                    // let new = player.model.position.slerp(&sc.player_target, 1.0);
+                    // println!("{}", new);
+                    // player.model.position = Vector3::new(
+                    //     intersect_point.x,
+                    //     player.model.position.y,
+                    //     intersect_point.z,
+                    // )
+                    // sc.player_target = Vector3::new(intersect_point.x, 0.0, intersect_point.z)
                 }
             }
-            Event::Key {
-                win_id,
-                pressed,
-                repeat,
-                scancode,
-                keycode,
-                modifiers,
+            SDL2Event::KeyDown {
+                keycode: Some(keycode),
+                ..
             } => {
-                if pressed {
-                    // Check for WASD keys
-                    let player_cube = sc.object_map.get_mut(&"player".to_string()).unwrap();
-                    let move_speed: f32 = 2.5;
+                // Check for WASD keys
+                let player_cube = sc.object_map.get_mut(&"player".to_string()).unwrap();
+                let move_speed: f32 = 2.5;
 
-                    match keycode {
-                        SDLK_w => {
-                            println!("W key pressed");
-                            // handle W key press
-                            player_cube.model.translate(Vector3::new(
-                                player_cube.model.position.x,
-                                player_cube.model.position.y,
-                                player_cube.model.position.z + move_speed,
-                            ));
-                        }
-                        SDLK_a => {
-                            println!("A key pressed");
-                            // handle A key press
-                            player_cube.model.translate(Vector3::new(
-                                player_cube.model.position.x + move_speed,
-                                player_cube.model.position.y,
-                                player_cube.model.position.z,
-                            ));
-                        }
-                        SDLK_s => {
-                            println!("S key pressed");
-                            // handle S key press
-                            player_cube.model.translate(Vector3::new(
-                                player_cube.model.position.x,
-                                player_cube.model.position.y,
-                                player_cube.model.position.z - move_speed,
-                            ));
-                        }
-                        SDLK_d => {
-                            println!("D key pressed");
-                            // handle D key press
-                            player_cube.model.translate(Vector3::new(
-                                player_cube.model.position.x - move_speed,
-                                player_cube.model.position.y,
-                                player_cube.model.position.z,
-                            ));
-                        }
-                        _ => {}
+                match keycode {
+                    Keycode::W => {
+                        println!("W key pressed");
+                        // handle W key press
+                        player_cube.model.translate(Vector3::new(
+                            player_cube.model.position.x,
+                            player_cube.model.position.y,
+                            player_cube.model.position.z + move_speed,
+                        ));
                     }
+                    Keycode::A => {
+                        println!("A key pressed");
+                        // handle A key press
+                        player_cube.model.translate(Vector3::new(
+                            player_cube.model.position.x + move_speed,
+                            player_cube.model.position.y,
+                            player_cube.model.position.z,
+                        ));
+                    }
+                    Keycode::S => {
+                        println!("S key pressed");
+                        // handle S key press
+                        player_cube.model.translate(Vector3::new(
+                            player_cube.model.position.x,
+                            player_cube.model.position.y,
+                            player_cube.model.position.z - move_speed,
+                        ));
+                    }
+                    Keycode::D => {
+                        println!("D key pressed");
+                        // handle D key press
+                        player_cube.model.translate(Vector3::new(
+                            player_cube.model.position.x - move_speed,
+                            player_cube.model.position.y,
+                            player_cube.model.position.z,
+                        ));
+                    }
+                    _ => {}
                 }
             }
             _ => (),

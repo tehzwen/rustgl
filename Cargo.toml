@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-beryllium = "0.13.3"
 imagine = "0.0.5"
 bytemuck = "1"
-ogl33 = { version = "0.2.0", features = ["debug_error_checks"]}
+gl = "0.6.0"
 nalgebra = "0.33.2"
 tobj = "4.0.2"
+sdl2 = "0.37.0"
 
 [dev-dependencies]

@@ -1,70 +1,68 @@
-use beryllium::{
-    events::Event,
-    init::InitFlags,
-    video::{CreateWinArgs, GlContextFlags, GlProfile, GlSwapInterval, GlWindow},
-    *,
+use sdl2::{
+    sys::Window,
+    video::{GLContext, GLProfile},
 };
-
-use core::{
-    convert::{TryFrom, TryInto},
-    mem::{size_of, size_of_val},
-};
-use ogl33::*;
-
-use std::ptr::null;
+use sdl2::{Sdl, VideoSubsystem};
 
 pub struct GameWindow {
     name: String,
     width: i32,
     height: i32,
 
-    pub window: Option<GlWindow>,
+    pub window: Option<sdl2::video::Window>,
     pub ctx: Option<Sdl>,
+    pub video_subsystem: Option<VideoSubsystem>,
 }
 
 impl GameWindow {
     pub fn new(name: String, width: i32, height: i32) -> GameWindow {
         GameWindow {
-            name: name,
-            width: width,
-            height: height,
+            name,
+            width,
+            height,
             window: None,
             ctx: None,
+            video_subsystem: None,
         }
     }
 
     pub fn init(&mut self) {
-        let sdl = Sdl::init(InitFlags::EVERYTHING);
-        sdl.set_gl_context_major_version(3).unwrap();
-        sdl.set_gl_context_minor_version(3).unwrap();
-        sdl.set_gl_profile(GlProfile::Core).unwrap();
-        sdl.set_gl_multisample_count(4).unwrap();
+        // Initialize SDL context
+        let sdl_context = sdl2::init().expect("unable to load sdl context");
+        let video_subsystem = sdl_context.video().expect("unable to get video subsystem");
 
-        let mut flags = GlContextFlags::default();
-        if cfg!(target_os = "macos") {
-            flags |= GlContextFlags::FORWARD_COMPATIBLE;
-        }
-        if cfg!(debug_assertions) {
-            flags |= GlContextFlags::DEBUG;
-        }
-        sdl.set_gl_context_flags(flags).unwrap();
+        // Set SDL GL attributes before creating window
+        let gl_attr = video_subsystem.gl_attr();
 
-        let gl_window = sdl
-            .create_gl_window(CreateWinArgs {
-                title: &self.name,
-                width: self.width,
-                height: self.height,
-                ..Default::default()
-            })
-            .expect("Couldn't make a window and context");
+        // Request an OpenGL 3.3 Core profile context
+        gl_attr.set_context_profile(GLProfile::Core);
+        gl_attr.set_context_version(3, 3);
 
-        // Set the swap interval
-        if let Some(window) = &self.window {
-            window.set_swap_interval(GlSwapInterval::Vsync).unwrap();
-        }
+        // Set color depth to 32 bits (RGBA)
+        gl_attr.set_red_size(8);
+        gl_attr.set_green_size(8);
+        gl_attr.set_blue_size(8);
+        gl_attr.set_alpha_size(8);
+        gl_attr.set_multisample_samples(16);
 
-        // Assign the created window to the `window` field
-        self.window = Some(gl_window);
-        self.ctx = Some(sdl);
+        // Create an OpenGL window with the specified attributes
+        let window = video_subsystem
+            .window(&self.name, self.width as u32, self.height as u32)
+            .opengl()
+            .resizable()
+            .build()
+            .map_err(|e| e.to_string())
+            .expect("unable to initialize window");
+
+        // Create OpenGL context for the window
+        let _gl_context = window.gl_create_context().unwrap();
+        let _gl = gl::load_with(|s| {
+            video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void
+        });
+        // Set the window and context
+        self.window = Some(window);
+
+        self.ctx = Some(sdl_context);
+        self.video_subsystem = Some(video_subsystem);
     }
 }
