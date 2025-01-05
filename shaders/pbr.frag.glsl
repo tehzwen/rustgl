@@ -7,22 +7,41 @@ struct PointLight {
     float strength;
 };
 
+struct DirectionalLight {
+    vec3 direction;
+    vec3 color;
+};
+
 // physical material
 uniform vec3 albedo;
 uniform float metallic;
 uniform float roughness;
 uniform float ao;
+uniform int enable_diffuse_texture;
+uniform sampler2D diffuse_texture;
+uniform float diffuse_texture_scale;
+uniform int enable_normal_texture;
+uniform sampler2D normal_texture;
+uniform float normal_texture_scale;
 
 uniform vec3 camera_position;
+uniform vec2 resolution;
 
 uniform int numPointLights;
 uniform PointLight[4] pointLights;
+uniform DirectionalLight dirLight;
 
 in vec3 fragPosition; // Position of the fragment in world space
 in vec3 normal;       // Normal of the fragment in world space
+in vec2 oUVs;
 
 // physical rendering components
 const float PI = 3.14159265359;
+const highp float NOISE_GRANULARITY = 1.0 / 255.0;
+
+highp float random(highp vec2 coords) {
+    return fract(sin(dot(coords.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float roughness);
@@ -64,10 +83,30 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
     return ggx1 * ggx2;
 }
 
+vec3 getNormalFromMap() {
+    vec3 tangentNormal = texture(normal_texture, oUVs * normal_texture_scale).xyz * 2.0 - 1.0;
+
+    vec3 Q1 = dFdx(fragPosition);
+    vec3 Q2 = dFdy(fragPosition);
+    vec2 st1 = dFdx(oUVs);
+    vec2 st2 = dFdy(oUVs);
+
+    vec3 N = normalize(normal);
+    vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+    vec3 B = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
+
 out vec4 final_color;
 
 void main() {
     vec3 N = normalize(normal);
+    if(enable_normal_texture == 1) {
+        N = getNormalFromMap();
+    }
+
     vec3 V = normalize(camera_position - fragPosition);
 
     vec3 total = vec3(0.0, 0.0, 0.0);
@@ -75,18 +114,46 @@ void main() {
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)
     vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo, metallic);
+
+    vec3 albedoColor = albedo;
+    if(enable_diffuse_texture == 1) {
+        albedoColor = pow(texture(diffuse_texture, oUVs * diffuse_texture_scale).rgb, vec3(2.2));
+    }
+
+    F0 = mix(F0, albedoColor, metallic);
 
     // reflectance equation
     vec3 Lo = vec3(0.0);
+
+    // Directional light contribution
+    {
+        vec3 L = normalize(-dirLight.direction); // Ensure the direction is normalized
+        vec3 H = normalize(V + L);
+
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, roughness);
+        float G = GeometrySmith(N, V, L, roughness);
+        vec3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+
+        vec3 numerator = NDF * G * F;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // Prevent divide by zero
+        vec3 specular = numerator / denominator;
+
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic;
+
+        float NdotL = max(dot(N, L), 0.0);
+        vec3 radiance = dirLight.color;
+        Lo += (kD * albedoColor / PI + specular) * radiance * NdotL;
+    }
 
     for(int i = 0; i < numPointLights; i++) {
         // calculate per-light radiance
         vec3 L = normalize(pointLights[i].position - fragPosition);
         vec3 H = normalize(V + L);
         float distance = length(pointLights[i].position - fragPosition);
-        float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * (distance * distance));
-        //vec3 radiance = pointLights[i].color * attenuation * pointLights[i].strength;
+        float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.0032 * (distance * distance));
         vec3 radiance = pointLights[i].color * pointLights[i].strength * attenuation;
 
         // Cook-Torrance BRDF
@@ -113,14 +180,14 @@ void main() {
         float NdotL = max(dot(N, L), 0.0);
 
         // add to outgoing radiance Lo
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+        Lo += (kD * albedoColor / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
 
         total += Lo;
     }
 
     // ambient lighting (note that the next IBL tutorial will replace
     // this ambient lighting with environment lighting).
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 ambient = vec3(0.03) * albedoColor * ao;
 
     vec3 color = ambient + total;
 
@@ -129,7 +196,9 @@ void main() {
     // gamma correct
     color = pow(color, vec3(1.0 / 2.2));
 
-    //float dither = fract(sin(dot(gl_FragCoord.xy ,vec2(12.9898,78.233))) * 43758.5453);
+    highp vec2 coordinates = gl_FragCoord.xy / resolution;
+    highp float dither = random(coordinates);
+    color += dither * NOISE_GRANULARITY;
+
     final_color = vec4(color, 1.0);
-    //final_color.rgb += dither * 0.01; // Adjust 0.01 for subtlety
 }

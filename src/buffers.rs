@@ -1,12 +1,12 @@
 use crate::vertex::Vertex;
-use nalgebra::Vector3;
 use gl::types::*;
-
+use nalgebra::{Vector2, Vector3};
 
 pub struct RenderBuffers {
     pub vao: u32,
     pub vbo_positions: u32,
     pub vbo_normals: u32, // Separate buffer for normals
+    pub vbo_uvs: u32,
     pub size: i32,
 }
 
@@ -16,11 +16,17 @@ impl RenderBuffers {
             vao: 0,
             vbo_positions: 0,
             vbo_normals: 0,
+            vbo_uvs: 0,
             size: 0,
         }
     }
 
-    pub fn init(&mut self, vertices: &Vec<Vector3<f32>>, normals: &Vec<Vector3<f32>>) {
+    pub fn init(
+        &mut self,
+        vertices: &Vec<Vector3<f32>>,
+        normals: &Vec<Vector3<f32>>,
+        uvs: &Vec<Vector2<f32>>,
+    ) {
         unsafe {
             // Generate and bind the VAO
             gl::GenVertexArrays(1, &mut self.vao);
@@ -71,6 +77,27 @@ impl RenderBuffers {
                 std::ptr::null(),
             );
             gl::EnableVertexAttribArray(1);
+
+            // uv attribute
+            gl::GenBuffers(1, &mut self.vbo_uvs);
+            assert_ne!(self.vbo_uvs, 0);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo_uvs);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (uvs.len() * std::mem::size_of::<Vector2<f32>>()) as isize,
+                uvs.as_slice().as_ptr().cast(),
+                gl::STATIC_DRAW,
+            );
+
+            gl::VertexAttribPointer(
+                2,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                size_of::<[f32; 2]>().try_into().unwrap(),
+                std::ptr::null(),
+            );
+            gl::EnableVertexAttribArray(2);
 
             self.size = vertices
                 .len()

@@ -6,8 +6,10 @@ use sdl2::event::Event as SDL2Event;
 use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, Sdl};
 use nalgebra::{Point, Point3, Vector3};
 
+use crate::directional_light::DirectionalLight;
 use crate::{camera::Camera, point_light::PointLight, render::Object};
 
+#[derive(Debug)]
 #[derive(Clone)]
 pub struct Settings {
     pub screen_width: i32,
@@ -38,6 +40,7 @@ pub struct Scene {
     pub active_camera: String,
     pub object_map: HashMap<String, Object>,
     pub point_lights: Vec<PointLight>,
+    pub directional_light: Option<DirectionalLight>,
     pub cameras: HashMap<String, Camera>,
     pub settings: Settings,
     pub player_target: Vector3<f32>,
@@ -49,8 +52,8 @@ pub struct Scene {
 
 impl Scene {
     pub fn new() -> Scene {
-        fn no_op(sc: &mut Scene) {}
-        fn no_op_event(sc: &mut Scene, ev: SDL2Event) {}
+        fn no_op(_sc: &mut Scene) {}
+        fn no_op_event(_sc: &mut Scene, _ev: SDL2Event) {}
         Scene {
             scene_time: Instant::now(),
             active_camera: "".to_string(),
@@ -59,6 +62,7 @@ impl Scene {
             cameras: HashMap::new(),
             settings: Settings::default(),
             player_target: Vector3::zeros(),
+            directional_light: None,
 
             on_start: no_op,
             on_update: no_op,

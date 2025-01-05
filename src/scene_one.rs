@@ -4,6 +4,8 @@ use nalgebra::{Matrix4, Point, Point3, Vector3};
 use sdl2::event::Event as SDL2Event;
 use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, Sdl};
 
+use crate::directional_light::DirectionalLight;
+use crate::texture;
 use crate::{
     buffers,
     camera::Camera,
@@ -12,6 +14,7 @@ use crate::{
     raycast::{ray_intersect_bb_projection, Ray},
     render::{Model, Object},
     scene::{Scene, Settings},
+    texture::loadTexture,
 };
 
 const ROTATION_SPEED: f32 = std::f32::consts::PI * 3.0;
@@ -19,6 +22,10 @@ const ROTATION_SPEED: f32 = std::f32::consts::PI * 3.0;
 pub fn scene_one(settings: Settings) -> Scene {
     let mut sc = Scene::new();
     sc.settings = settings;
+
+    let mut dir_light = DirectionalLight::new();
+    sc.directional_light = Some(dir_light);
+    sc.directional_light.as_mut().unwrap().direction.z = -1.0;
 
     fn on_start(sc: &mut Scene) {
         sc.active_camera = "main".to_string();
@@ -35,18 +42,23 @@ pub fn scene_one(settings: Settings) -> Scene {
         let sphere_data = obj::parse_obj("resources/sphere-smooth.obj")
             .expect("unable to load obj file for sphere");
 
+        let mut red_material = material::Physical::new(Vector3::new(0.5, 0.0, 0.0), 3.0, 0.1, 1.5);
+
+        // unsafe {
+        //     let tex = loadTexture("resources/checkers.png");
+        //     let n_tex = loadTexture("resources/checkers-normal.png");
+        //     red_material.diffuse_texture = Some(tex);
+        //     red_material.normal_texture = Some(n_tex);
+        // }
+
         let mut red: Object = Object::new(
             Model::new(),
             buffers::RenderBuffers::new(),
             sphere_data.vertices.clone(),
             sphere_data.normals.clone(),
+            sphere_data.tex_coords.clone(),
             // Box::new(material::Physical::default()),
-            Box::new(material::Physical::new(
-                Vector3::new(0.5, 0.0, 0.0),
-                3.0,
-                0.1,
-                1.5,
-            )),
+            Box::new(red_material),
         );
         red.model.translate(Vector3::new(0.0, 25.0, -15.0));
         sc.object_map.insert("red".to_string(), red);
@@ -56,6 +68,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             buffers::RenderBuffers::new(),
             sphere_data.vertices.clone(),
             sphere_data.normals.clone(),
+            sphere_data.tex_coords.clone(),
             Box::new(material::Physical::new(
                 Vector3::new(0.0, 0.5, 0.0),
                 3.0,
@@ -71,6 +84,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             buffers::RenderBuffers::new(),
             sphere_data.vertices.clone(),
             sphere_data.normals.clone(),
+            sphere_data.tex_coords.clone(),
             Box::new(material::Physical::new(
                 Vector3::new(0.0, 0.0, 0.5),
                 7.0,
@@ -82,17 +96,26 @@ pub fn scene_one(settings: Settings) -> Scene {
         sc.object_map.insert("blue".to_string(), blue);
 
         let plane_data = obj::parse_obj("resources/plane.obj").expect("unable to load plane data");
+
+        let mut plane_material =
+            material::Physical::new(Vector3::new(0.8, 0.6, 0.0), 0.0, 150.1, 0.1);
+
+        unsafe {
+            let tex = loadTexture("resources/grey-rocks.png");
+            let n_tex = loadTexture("resources/grey-rocks-normal.png");
+            plane_material.diffuse_texture = Some(tex);
+            plane_material.diffuse_texture_scale = 25.0;
+            plane_material.normal_texture = Some(n_tex);
+            plane_material.normal_texture_scale = 25.0;
+        }
+
         let mut main_plane = Object::new(
             Model::new(),
             buffers::RenderBuffers::new(),
             plane_data.vertices.clone(),
             plane_data.normals.clone(),
-            Box::new(material::Physical::new(
-                Vector3::new(0.8, 0.6, 0.0),
-                0.0,
-                150.1,
-                0.1,
-            )),
+            plane_data.tex_coords.clone(),
+            Box::new(plane_material),
         );
         // main_plane.model.scale(Vector3::new(100.0, 100.0, 100.0));
         sc.object_map.insert("main_plain".to_string(), main_plane);
@@ -104,6 +127,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             buffers::RenderBuffers::new(),
             cube_data.vertices.clone(),
             cube_data.normals.clone(),
+            cube_data.tex_coords.clone(),
             Box::new(material::Physical::new(
                 Vector3::new(0.0, 0.0, 0.5),
                 7.0,
