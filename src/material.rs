@@ -5,8 +5,29 @@ use crate::shader::get_shader_location;
 
 pub trait Material {
     fn link_shader(&self, program: u32);
-    fn diffuse_texture(&self) -> Option<u32>;
-    fn normal_texture(&self) -> Option<u32>;
+    fn toggle_map(&mut self, t: TextureType);
+}
+
+pub enum TextureType {
+    DIFFUSE,
+    NORMAL,
+    ARM,
+}
+
+pub struct Texture {
+    pub tex: Option<u32>,
+    pub enabled: bool,
+    pub scale: f32,
+}
+
+impl Texture {
+    pub fn new() -> Texture {
+        return Texture {
+            tex: None,
+            enabled: false,
+            scale: 1.0,
+        };
+    }
 }
 
 pub struct Physical {
@@ -14,10 +35,9 @@ pub struct Physical {
     pub metallic: f32,
     pub roughness: f32,
     pub ao: f32,
-    pub diffuse_texture: Option<u32>,
-    pub diffuse_texture_scale: f32,
-    pub normal_texture: Option<u32>,
-    pub normal_texture_scale: f32,
+    pub diffuse_texture: Texture,
+    pub normal_texture: Texture,
+    pub arm_texture: Texture,
 }
 
 impl Physical {
@@ -27,10 +47,9 @@ impl Physical {
             metallic: m,
             roughness: r,
             ao: ao,
-            diffuse_texture: None,
-            diffuse_texture_scale: 1.0,
-            normal_texture: None,
-            normal_texture_scale: 1.0,
+            diffuse_texture: Texture::new(),
+            normal_texture: Texture::new(),
+            arm_texture: Texture::new(),
         }
     }
 
@@ -40,62 +59,81 @@ impl Physical {
             metallic: 0.5,
             roughness: 0.5,
             ao: 0.5,
-            diffuse_texture: None,
-            diffuse_texture_scale: 1.0,
-            normal_texture: None,
-            normal_texture_scale: 1.0,
+            diffuse_texture: Texture::new(),
+            normal_texture: Texture::new(),
+            arm_texture: Texture::new(),
         }
-    }
-    pub fn set_diffuse_texture(&mut self, tex: u32) {
-        self.diffuse_texture = Some(tex);
     }
 }
 
 impl Material for Physical {
     fn link_shader(&self, program: u32) {
         // link the uniforms with the shader
-        let albedo_loc = get_shader_location(program, "albedo");
-        let metallic_loc = get_shader_location(program, "metallic");
-        let roughness_loc = get_shader_location(program, "roughness");
-        let ao_loc = get_shader_location(program, "ao");
-        let diffuse_scaling_loc = get_shader_location(program, "diffuse_texture_scale");
-        let normal_scaling_loc = get_shader_location(program, "normal_texture_scale");
+        let albedo_loc = get_shader_location(program, "material.albedo");
+        let metallic_loc = get_shader_location(program, "material.metallic");
+        let roughness_loc = get_shader_location(program, "material.roughness");
+        let ao_loc = get_shader_location(program, "material.ao");
+        let diffuse_scaling_loc = get_shader_location(program, "material.diffuse_texture.scale");
+        let normal_scaling_loc = get_shader_location(program, "material.normal_texture.scale");
 
         unsafe {
             gl::Uniform3f(albedo_loc, self.albedo.x, self.albedo.y, self.albedo.z);
             gl::Uniform1f(metallic_loc, self.metallic);
             gl::Uniform1f(roughness_loc, self.roughness);
             gl::Uniform1f(ao_loc, self.ao);
-            gl::Uniform1f(diffuse_scaling_loc, self.diffuse_texture_scale);
-            gl::Uniform1f(normal_scaling_loc, self.normal_texture_scale);
+            gl::Uniform1f(diffuse_scaling_loc, self.diffuse_texture.scale);
+            gl::Uniform1f(normal_scaling_loc, self.normal_texture.scale);
 
-            if let Some(diffuse) = self.diffuse_texture {
-                gl::Uniform1i(get_shader_location(program, "enable_diffuse_texture"), 1);
+            gl::Uniform1i(
+                get_shader_location(program, "material.diffuse_texture.enabled"),
+                self.diffuse_texture.enabled as i32,
+            );
+
+            if let Some(diffuse) = self.diffuse_texture.tex {
                 gl::ActiveTexture(gl::TEXTURE0);
                 gl::BindTexture(gl::TEXTURE_2D, diffuse);
-                let texture_loc = get_shader_location(program, "diffuse_texture");
+                let texture_loc = get_shader_location(program, "material.diffuse_texture.tex");
                 gl::Uniform1i(texture_loc, 0);
-            } else {
-                gl::Uniform1i(get_shader_location(program, "enable_diffuse_texture"), 0);
             }
 
-            if let Some(normal) = self.normal_texture {
-                gl::Uniform1i(get_shader_location(program, "enable_normal_texture"), 1);
+            gl::Uniform1i(
+                get_shader_location(program, "material.normal_texture.enabled"),
+                self.normal_texture.enabled as i32,
+            );
+
+            if let Some(normal) = self.normal_texture.tex {
                 gl::ActiveTexture(gl::TEXTURE1);
                 gl::BindTexture(gl::TEXTURE_2D, normal);
-                let texture_loc = get_shader_location(program, "normal_texture");
+                let texture_loc = get_shader_location(program, "material.normal_texture.tex");
                 gl::Uniform1i(texture_loc, 1);
-            } else {
-                gl::Uniform1i(get_shader_location(program, "enable_normal_texture"), 0);
+            }
+
+            gl::Uniform1i(
+                get_shader_location(program, "material.arm_texture.enabled"),
+                self.arm_texture.enabled as i32,
+            );
+
+            if let Some(arm) = self.arm_texture.tex {
+                gl::ActiveTexture(gl::TEXTURE2);
+                gl::BindTexture(gl::TEXTURE_2D, arm);
+                let texture_loc = get_shader_location(program, "material.arm_texture.tex");
+                gl::Uniform1i(texture_loc, 2);
             }
         }
     }
 
-    fn diffuse_texture(&self) -> Option<u32> {
-        return self.diffuse_texture;
-    }
-
-    fn normal_texture(&self) -> Option<u32> {
-        return self.normal_texture;
+    fn toggle_map(&mut self, t: TextureType) {
+        // need to add a bool to the struct itself so we can easily toggle
+        match t {
+            TextureType::DIFFUSE => {
+                self.diffuse_texture.enabled = !self.diffuse_texture.enabled;
+            }
+            TextureType::NORMAL => {
+                self.normal_texture.enabled = !self.normal_texture.enabled;
+            }
+            TextureType::ARM => {
+                self.arm_texture.enabled = !self.arm_texture.enabled;
+            }
+        }
     }
 }

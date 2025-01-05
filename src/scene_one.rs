@@ -103,10 +103,18 @@ pub fn scene_one(settings: Settings) -> Scene {
         unsafe {
             let tex = loadTexture("resources/grey-rocks.png");
             let n_tex = loadTexture("resources/grey-rocks-normal.png");
-            plane_material.diffuse_texture = Some(tex);
-            plane_material.diffuse_texture_scale = 25.0;
-            plane_material.normal_texture = Some(n_tex);
-            plane_material.normal_texture_scale = 25.0;
+            let arm_tex = loadTexture("resources/grey-rocks-arm.png");
+            plane_material.diffuse_texture.tex = Some(tex);
+            plane_material.diffuse_texture.enabled = true;
+            plane_material.diffuse_texture.scale = 25.0;
+
+            plane_material.normal_texture.tex = Some(n_tex);
+            plane_material.normal_texture.enabled = true;
+            plane_material.normal_texture.scale = 25.0;
+
+            plane_material.arm_texture.tex = Some(arm_tex);
+            plane_material.arm_texture.enabled = true;
+            plane_material.arm_texture.scale = 25.0;
         }
 
         let mut main_plane = Object::new(
@@ -246,45 +254,18 @@ pub fn scene_one(settings: Settings) -> Scene {
                 ..
             } => {
                 // Check for WASD keys
-                let player_cube = sc.object_map.get_mut(&"player".to_string()).unwrap();
-                let move_speed: f32 = 2.5;
-
                 match keycode {
-                    Keycode::W => {
-                        println!("W key pressed");
-                        // handle W key press
-                        player_cube.model.translate(Vector3::new(
-                            player_cube.model.position.x,
-                            player_cube.model.position.y,
-                            player_cube.model.position.z + move_speed,
-                        ));
-                    }
                     Keycode::A => {
-                        println!("A key pressed");
-                        // handle A key press
-                        player_cube.model.translate(Vector3::new(
-                            player_cube.model.position.x + move_speed,
-                            player_cube.model.position.y,
-                            player_cube.model.position.z,
-                        ));
+                        let plane = sc.object_map.get_mut(&"main_plain".to_string()).unwrap();
+                        plane.material.toggle_map(material::TextureType::ARM);
                     }
-                    Keycode::S => {
-                        println!("S key pressed");
-                        // handle S key press
-                        player_cube.model.translate(Vector3::new(
-                            player_cube.model.position.x,
-                            player_cube.model.position.y,
-                            player_cube.model.position.z - move_speed,
-                        ));
+                    Keycode::R => {
+                        let plane = sc.object_map.get_mut(&"main_plain".to_string()).unwrap();
+                        plane.material.toggle_map(material::TextureType::ARM);
                     }
-                    Keycode::D => {
-                        println!("D key pressed");
-                        // handle D key press
-                        player_cube.model.translate(Vector3::new(
-                            player_cube.model.position.x - move_speed,
-                            player_cube.model.position.y,
-                            player_cube.model.position.z,
-                        ));
+                    Keycode::N => {
+                        let plane = sc.object_map.get_mut(&"main_plain".to_string()).unwrap();
+                        plane.material.toggle_map(material::TextureType::NORMAL);
                     }
                     _ => {}
                 }

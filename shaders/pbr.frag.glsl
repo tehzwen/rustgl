@@ -12,17 +12,24 @@ struct DirectionalLight {
     vec3 color;
 };
 
+struct MaterialTexture {
+    sampler2D tex;
+    int enabled;
+    float scale;
+};
+
 // physical material
-uniform vec3 albedo;
-uniform float metallic;
-uniform float roughness;
-uniform float ao;
-uniform int enable_diffuse_texture;
-uniform sampler2D diffuse_texture;
-uniform float diffuse_texture_scale;
-uniform int enable_normal_texture;
-uniform sampler2D normal_texture;
-uniform float normal_texture_scale;
+struct PhysicalMaterial {
+    vec3 albedo;
+    float metallic;
+    float roughness;
+    float ao;
+    MaterialTexture diffuse_texture;
+    MaterialTexture normal_texture;
+    MaterialTexture arm_texture; // ao, roughness, metallic all in one
+};
+
+uniform PhysicalMaterial material;
 
 uniform vec3 camera_position;
 uniform vec2 resolution;
@@ -84,7 +91,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 }
 
 vec3 getNormalFromMap() {
-    vec3 tangentNormal = texture(normal_texture, oUVs * normal_texture_scale).xyz * 2.0 - 1.0;
+    vec3 tangentNormal = texture(material.normal_texture.tex, oUVs * material.normal_texture.scale).xyz * 2.0 - 1.0;
 
     vec3 Q1 = dFdx(fragPosition);
     vec3 Q2 = dFdy(fragPosition);
@@ -103,7 +110,7 @@ out vec4 final_color;
 
 void main() {
     vec3 N = normalize(normal);
-    if(enable_normal_texture == 1) {
+    if(material.normal_texture.enabled == 1) {
         N = getNormalFromMap();
     }
 
@@ -115,12 +122,19 @@ void main() {
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)
     vec3 F0 = vec3(0.04);
 
-    vec3 albedoColor = albedo;
-    if(enable_diffuse_texture == 1) {
-        albedoColor = pow(texture(diffuse_texture, oUVs * diffuse_texture_scale).rgb, vec3(2.2));
+    // check if we want to use diffuse map
+    vec3 albedoColor = material.albedo;
+    if(material.diffuse_texture.enabled == 1) {
+        albedoColor = pow(texture(material.diffuse_texture.tex, oUVs * material.diffuse_texture.scale).rgb, vec3(2.2));
     }
 
-    F0 = mix(F0, albedoColor, metallic);
+    // check if we want to use roughness map
+    float roughness = material.roughness;
+    if (material.arm_texture.enabled == 1) {
+        roughness = texture(material.arm_texture.tex, oUVs * material.arm_texture.scale).g;
+    }
+
+    F0 = mix(F0, albedoColor, material.metallic);
 
     // reflectance equation
     vec3 Lo = vec3(0.0);
@@ -141,7 +155,7 @@ void main() {
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+        kD *= 1.0 - material.metallic;
 
         float NdotL = max(dot(N, L), 0.0);
         vec3 radiance = dirLight.color;
@@ -174,7 +188,7 @@ void main() {
         // multiply kD by the inverse metalness such that only non-metals
         // have diffuse lighting, or a linear blend if partly metal (pure metals
         // have no diffuse light).
-        kD *= 1.0 - metallic;
+        kD *= 1.0 - material.metallic;
 
         // scale light by NdotL
         float NdotL = max(dot(N, L), 0.0);
@@ -187,7 +201,12 @@ void main() {
 
     // ambient lighting (note that the next IBL tutorial will replace
     // this ambient lighting with environment lighting).
-    vec3 ambient = vec3(0.03) * albedoColor * ao;
+    float ao = material.ao;
+    if (material.arm_texture.enabled == 1) {
+        ao = texture(material.arm_texture.tex, oUVs).r;
+    }
+
+    vec3 ambient = vec3(0.03) * albedoColor * material.ao;
 
     vec3 color = ambient + total;
 
