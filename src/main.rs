@@ -18,6 +18,7 @@ mod shader;
 mod texture;
 mod vertex;
 mod window;
+mod particle;
 
 use core::{
     convert::{TryFrom, TryInto},

@@ -38,8 +38,8 @@ uniform int numPointLights;
 uniform PointLight[4] pointLights;
 uniform DirectionalLight dirLight;
 
-in vec3 fragPosition; // Position of the fragment in world space
-in vec3 normal;       // Normal of the fragment in world space
+in vec3 fragPosition;
+in vec3 normal;
 in vec2 oUVs;
 
 // physical rendering components
@@ -207,7 +207,6 @@ void main() {
     }
 
     vec3 ambient = vec3(0.03) * albedoColor * material.ao;
-
     vec3 color = ambient + total;
 
     // HDR tonemapping

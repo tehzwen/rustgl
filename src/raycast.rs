@@ -14,23 +14,16 @@ struct Plane {
 
 impl Ray {
     pub fn intersect_plane(&self, plane: &Plane) -> Option<Point3<f32>> {
-        // Calculate the denominator (dot product of ray direction and plane normal)
         let denom = plane.normal.dot(&self.direction);
-
-        // If denominator is 0, the ray is parallel to the plane, so no intersection
         if denom.abs() < f32::EPSILON {
             return None;
         }
 
-        // Calculate the t value for the intersection point
         let t = plane.normal.dot(&(plane.point - self.origin)) / denom;
-
-        // If t is negative, the intersection point is behind the ray origin
         if t < 0.0 {
             return None;
         }
 
-        // Calculate the intersection point
         let intersection = self.origin + self.direction * t;
 
         Some(intersection)

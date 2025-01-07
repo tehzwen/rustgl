@@ -1,17 +1,15 @@
 #version 330 core
 layout(location = 0) in vec3 pos;
-layout(location = 1) in vec3 norm; // Normal of the vertex
+layout(location = 1) in vec3 norm;
 layout(location = 2) in vec2 uvs;
 
-uniform mat4 projection; // Orthogonal projection matrix
-uniform mat4 model;      // Model transformation matrix
-uniform mat4 view;       // View (camera) matrix
-uniform mat3 normalMatrix;
+uniform mat4 projection;
+uniform mat4 model;
+uniform mat4 view;
 
-out vec3 fragPosition;   // To pass to fragment shader
-out vec3 normal;         // To pass to fragment shader
+out vec3 fragPosition;
+out vec3 normal;
 out vec2 oUVs;
-out vec3 Normal;
 
 void main() {
     vec4 worldPosition = model * vec4(pos, 1.0);
