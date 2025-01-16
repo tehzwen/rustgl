@@ -82,6 +82,7 @@ pub struct Object {
     pub normals: Vec<Vector3<f32>>,
     pub uvs: Vec<Vector2<f32>>,
     pub bounding_box: collision::BoundingBox,
+    pub shader_program: u32,
 }
 
 impl Object {
@@ -101,6 +102,7 @@ impl Object {
             uvs: uv,
             material,
             bounding_box: BoundingBox::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            shader_program: 0,
         }
     }
 
@@ -113,6 +115,5 @@ impl Object {
         // etc etc
 
         self.bounding_box = collision::get_bounding_box(&self.vertices);
-        println!("{:?}", self.bounding_box);
     }
 }

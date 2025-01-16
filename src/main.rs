@@ -9,6 +9,7 @@ mod collision;
 mod directional_light;
 mod material;
 mod obj;
+mod particle;
 mod point_light;
 mod raycast;
 mod render;
@@ -18,13 +19,13 @@ mod shader;
 mod texture;
 mod vertex;
 mod window;
-mod particle;
 
 use core::{
     convert::{TryFrom, TryInto},
     mem::{size_of, size_of_val},
 };
 use nalgebra::{Matrix4, Point3, Vector3};
+use particle::{Particle, ParticleGenerator};
 use point_light::PointLight;
 use scene::{Scene, Settings};
 
@@ -52,19 +53,13 @@ fn main() {
 
     scenes.insert("scene-01".to_string(), scene_one::scene_one(scene_settings));
 
-    let mut shader_program: u32 = 0;
-    unsafe {
-        let blinn_shader = shader::Shader::new("pbr".to_string());
-        shader_program = blinn_shader.program;
-
-        gl::ClearColor(0.2, 0.3, 0.3, 1.0);
-    }
-
     let scene = scenes
         .get_mut(&active_scene)
         .expect("unable to get active-scene");
 
     scene.start();
+
+    let mut particle_gen = ParticleGenerator::new(1000);
 
     'main_loop: loop {
         let aspect: f32 = scene.settings.screen_width as f32 / scene.settings.screen_height as f32;
@@ -107,46 +102,46 @@ fn main() {
                 scene.settings.screen_height,
             );
 
-            // Use the shader program
-            gl::UseProgram(shader_program);
-
-            // Get uniform locations for projection, view, and model matrices
-            let projection_loc = shader::get_shader_location(shader_program, "projection");
-            let model_loc = shader::get_shader_location(shader_program, "model");
-
-            gl::UniformMatrix4fv(projection_loc, 1, gl::FALSE, projection.as_ptr());
-            scene
-                .cameras
-                .get_mut(&scene.active_camera)
-                .unwrap()
-                .link_shader(shader_program);
-            for (index, pl) in scene.point_lights.iter_mut().enumerate() {
-                pl.link_shader(shader_program, index.try_into().unwrap());
-            }
-
-            // link the dir light if it is present
-            if let Some(dir_light) = &scene.directional_light {
-                dir_light.link_shader(shader_program);
-            }
-
-            gl::Uniform1i(
-                shader::get_shader_location(shader_program, "numPointLights"),
-                scene.point_lights.len().try_into().unwrap(),
-            );
-
-            gl::Uniform2f(
-                shader::get_shader_location(shader_program, "resolution"),
-                scene.settings.screen_width as f32,
-                scene.settings.screen_height as f32,
-            );
-
             // now loop over the objects and get specific uniform fields for the object
             for (_, object) in &mut scene.object_map.iter_mut() {
+                gl::UseProgram(object.shader_program);
+
+                // Get uniform locations for projection, view, and model matrices
+                let projection_loc =
+                    shader::get_shader_location(object.shader_program, "projection");
+                let model_loc = shader::get_shader_location(object.shader_program, "model");
+
+                gl::UniformMatrix4fv(projection_loc, 1, gl::FALSE, projection.as_ptr());
+                scene
+                    .cameras
+                    .get_mut(&scene.active_camera)
+                    .unwrap()
+                    .link_shader(object.shader_program);
+                for (index, pl) in scene.point_lights.iter_mut().enumerate() {
+                    pl.link_shader(object.shader_program, index.try_into().unwrap());
+                }
+
+                // link the dir light if it is present
+                if let Some(dir_light) = &scene.directional_light {
+                    dir_light.link_shader(object.shader_program);
+                }
+
+                gl::Uniform1i(
+                    shader::get_shader_location(object.shader_program, "numPointLights"),
+                    scene.point_lights.len().try_into().unwrap(),
+                );
+
+                gl::Uniform2f(
+                    shader::get_shader_location(object.shader_program, "resolution"),
+                    scene.settings.screen_width as f32,
+                    scene.settings.screen_height as f32,
+                );
+
                 let model = object.model.get_model_matrix();
                 gl::UniformMatrix4fv(model_loc, 1, gl::FALSE, model.as_ptr());
 
                 // link the material here
-                object.material.link_shader(shader_program);
+                object.material.link_shader(object.shader_program);
 
                 // Bind buffers and draw
                 object.buffers.bind();
@@ -155,6 +150,15 @@ fn main() {
             }
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }
+
+        let cam = scene.cameras.get_mut(&scene.active_camera).unwrap();
+
+        // render particles
+        // let ident = nalgebra::Matrix4::identity();
+
+        particle_gen.update();
+        particle_gen.render(&cam.view_matrix(), &projection, 0.0);
+
         gl_win.gl_swap_window();
     }
 }

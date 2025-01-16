@@ -5,6 +5,7 @@ use sdl2::event::Event as SDL2Event;
 use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, Sdl};
 
 use crate::directional_light::DirectionalLight;
+use crate::shader::Shader;
 use crate::texture;
 use crate::{
     buffers,
@@ -28,6 +29,12 @@ pub fn scene_one(settings: Settings) -> Scene {
     sc.directional_light.as_mut().unwrap().direction.z = -1.0;
 
     fn on_start(sc: &mut Scene) {
+        // load in pbr shader to be used by objects in our scene
+        let mut shader_program: u32 = 0;
+        unsafe {
+            shader_program = Shader::new("pbr".to_string()).program;
+        }
+
         sc.active_camera = "main".to_string();
         sc.cameras.insert(
             "main".to_string(),
@@ -61,6 +68,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             Box::new(red_material),
         );
         red.model.translate(Vector3::new(0.0, 25.0, -15.0));
+        red.shader_program = shader_program;
         sc.object_map.insert("red".to_string(), red);
 
         let mut green = Object::new(
@@ -77,6 +85,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             )),
         );
         green.model.translate(Vector3::new(65.0, 25.0, -15.0));
+        green.shader_program = shader_program;
         sc.object_map.insert("green".to_string(), green);
 
         let mut blue = Object::new(
@@ -93,6 +102,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             )),
         );
         blue.model.translate(Vector3::new(-65.0, 25.0, -15.0));
+        blue.shader_program = shader_program;
         sc.object_map.insert("blue".to_string(), blue);
 
         let plane_data = obj::parse_obj("resources/plane.obj").expect("unable to load plane data");
@@ -125,6 +135,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             plane_data.tex_coords.clone(),
             Box::new(plane_material),
         );
+        main_plane.shader_program = shader_program;
         // main_plane.model.scale(Vector3::new(100.0, 100.0, 100.0));
         sc.object_map.insert("main_plain".to_string(), main_plane);
 
@@ -144,6 +155,7 @@ pub fn scene_one(settings: Settings) -> Scene {
             )),
         );
         player_cube.model.translate(Vector3::new(0.0, 0.0, 20.0));
+        player_cube.shader_program = shader_program;
         sc.object_map.insert("player".to_string(), player_cube);
 
         // initialize the objects
